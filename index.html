@@ -493,7 +493,7 @@
     podcast:{name:"播客",unit:"期",color:"#ffb84d"},
     doc:{name:"纪录片",unit:"分钟",color:"#6fd0d8"}
   };
-  const PALETTE=["#5b9df9","#ff8fc4","#7fd6a6","#c3b1e6","#ffb84d","#6fd0d8","#ff9e7a","#9b8cff"];
+  const PALETTE=["#5b9df9","#ff8fc4","#7fd6a6","#c3b1e6","#ffb84d","#6fd0d8","#ff9e7a","#9b8cff","#ef7a9e","#8ec96b","#7b86e8","#e39a5c"];
   let CAT=loadCats();
   function loadCats(){
     try{const raw=localStorage.getItem(CATS_KEY);if(raw){const d=JSON.parse(raw);if(d&&typeof d==="object"&&Object.keys(d).length)return d;}}catch(e){}
@@ -524,6 +524,16 @@
   }
   function save(){localStorage.setItem(KEY,JSON.stringify({items:items,seeded:true}));}
   function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
+  /* 每部作品一个专属颜色（参考追文记：不按分类，按作品分配） */
+  function colorOf(it){return it.color||(CAT[it.cat]&&CAT[it.cat].color)||PALETTE[0];}
+  function pickColor(list){
+    const src=list||items;
+    const used={};
+    src.forEach(i=>{const c=i.color||colorOf(i);used[c]=(used[c]||0)+1;});
+    let best=PALETTE[0],bn=Infinity;
+    PALETTE.forEach(c=>{const n=used[c]||0;if(n<bn){bn=n;best=c;}});
+    return best;
+  }
   function todayStr(){const d=new Date();return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();}
   function year(){return new Date().getFullYear();}
   /* 日期键统一为 YYYY-M-D（不补零），与日历渲染保持一致 */
@@ -585,6 +595,15 @@
       if(!it.start && ks.length) it.start=minKey(ks);
       if(!it.end && ks.length) it.end=maxKey(ks);
       if(!Object.keys(it.marks).length && it.start) it.marks=buildMarks(it.start,it.end);
+    });
+    /* 老数据补发专属颜色：按现有顺序取当前占用最少的颜色，保证尽量不重复 */
+    const taken={};arr.forEach(it=>{if(it.color)taken[it.color]=(taken[it.color]||0)+1;});
+    arr.forEach(it=>{
+      if(!it.color){
+        let best=PALETTE[0],bn=Infinity;
+        PALETTE.forEach(c=>{const n=taken[c]||0;if(n<bn){bn=n;best=c;}});
+        it.color=best;taken[best]=bn+1;
+      }
     });
     return arr;
   }
@@ -859,10 +878,12 @@
       Object.assign(it,data);it.updated=Date.now();
     }else{
       data.id=uid();data.added=Date.now();data.updated=Date.now();
+      data.color=pickColor();
       items.push(data);
     }
     save();closeModal();renderAll();
-    const extra=dates.length?("，已记入 "+dates.length+" 天"):"（未记录观看日期）";
+    const dayCnt=Object.keys(data.marks||{}).length;
+    const extra=dayCnt?("，已记入 "+dayCnt+" 天"):"（未记录观看日期）";
     toast(hadId?"已更新":"已添加「"+title+"」"+extra);
   }
 
@@ -985,9 +1006,9 @@
         const dim=dt.getMonth()!==m;const isT=key===tk;
         let rows="";
         shown.forEach(it=>{
-          const c=CAT[it.cat]||CAT.tv;
+          const c=colorOf(it);
           if(it.marks[key]){
-            rows+='<div class="cal-row" data-id="'+it.id+'" style="background:'+hexA(c.color,0.75)+';border-color:'+hexA(c.color,0.92)+'"><span class="cal-tt">'+esc(it.title)+'</span></div>';
+            rows+='<div class="cal-row" data-id="'+it.id+'" style="background:'+hexA(c,0.75)+';border-color:'+hexA(c,0.92)+'"><span class="cal-tt">'+esc(it.title)+'</span></div>';
           }else{
             rows+='<div class="cal-row ph"></div>';
           }
