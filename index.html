@@ -195,20 +195,7 @@
     box-shadow:var(--shadow-soft);font-size:16px;color:var(--ink);outline:none;font-family:inherit;
   }
   .field textarea{resize:vertical;min-height:60px;}
-  .date-row{display:flex;gap:8px;align-items:center;}
-  .date-row input{flex:1 1 auto;min-width:0;}
-  .date-row .mini{flex:0 0 auto;}
-  .date-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
-  .date-chip{
-    display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink);
-    background:var(--glass-strong);box-shadow:var(--shadow-soft);
-    padding:5px 9px;border-radius:999px;
-  }
-  .date-chip.today{background:var(--glass-strong);border:1px solid rgba(120,140,200,0.3);}
-  .date-chip b{font-weight:600;}
-  .date-chip i{cursor:pointer;font-style:normal;color:var(--ink-soft);font-size:14px;line-height:1;padding:0 1px;}
-  .date-chip i:hover{color:#e0537a;}
-  .date-empty{font-size:12px;color:var(--ink-soft);margin-top:8px;}
+  .field-hint{font-size:11.5px;color:var(--ink-soft);margin:-7px 0 7px;line-height:1.5;}
   .two{display:grid;grid-template-columns:1fr 1fr;gap:11px;}
   .rate-pick{display:flex;gap:6px;font-size:25px;cursor:pointer;}
   .rate-pick span{color:rgba(120,140,200,0.3);transition:transform .1s;}
@@ -293,8 +280,6 @@
 
   <!-- ============ 档案 ============ -->
   <section id="viewList">
-    <div class="filters" id="catFilters"></div>
-
     <div class="filter-row" id="statusRow">
       <div class="filter-group">
         <span class="lbl">状态</span>
@@ -341,13 +326,20 @@
       <input type="file" id="importFile" accept="application/json" class="hidden">
     </div>
 
+    <div class="sec-title"><h2>分类统计</h2><span class="line"></span></div>
+    <div class="data-card glass">
+      <p class="hint">按类别统计你的记录数量（颜色与各分类一致）。在档案页添加记录时可选择分类；点「＋ 分类」可新增自定义类别。</p>
+      <div class="cat-bars" id="catStatsBars"></div>
+      <div class="data-acts" style="margin-top:4px;">
+        <button class="btn ghost" id="addCatBtn">＋ 分类</button>
+      </div>
+    </div>
+
     <div class="sec-title"><h2>年度报告 &amp; 成就</h2><span class="line"></span></div>
     <div class="report-grid">
       <div class="report-card glass" id="reportCard">
         <h3 id="reportYearTitle">今年回顾</h3>
         <div class="report-stats" id="reportStats"></div>
-        <h3 style="margin-top:4px;">类别分布</h3>
-        <div class="cat-bars" id="catBars"></div>
         <button class="btn ghost" id="downloadReport" style="margin-top:14px;width:100%;">下载分享图 (PNG)</button>
       </div>
       <div class="report-card glass">
@@ -395,14 +387,17 @@
       <label>平台 / 来源</label>
       <input id="f_platform" type="text" placeholder="例如：腾讯视频 / 爱奇艺 / B站 / 小宇宙 / 网易云">
     </div>
-    <div class="field">
-      <label>观看日期（决定日历色条，可补录历史）</label>
-      <div class="date-row">
-        <input id="f_date" type="date">
-        <button type="button" class="mini" id="addDateBtn">添加此日</button>
+    <div class="two">
+      <div class="field">
+        <label>开始观看时间</label>
+        <input id="f_start" type="date">
       </div>
-      <div class="date-chips" id="datesList"></div>
+      <div class="field">
+        <label>结束观看时间</label>
+        <input id="f_end" type="date">
+      </div>
     </div>
+    <p class="field-hint">填写开始 / 结束日期后，日历会以色条展示这段观看区间；结束留空表示仍在看。随手记当天，用卡片上的「今日已看」即可。</p>
     <div class="two">
       <div class="field">
         <label>进度（当前）</label>
@@ -506,15 +501,10 @@
     dropped:{name:"弃剧",color:"var(--c-dropped)"}
   };
 
-  let items=load();
-  items.forEach(it=>{
-    if(!it.marks||typeof it.marks!=="object") it.marks={};
-    if(it.last && !Object.keys(it.marks).length) it.marks[it.last]=true;
-  });
-  let filter={cat:"all",status:"all",q:""};
+  let items=normalizeItems(load());
+  let filter={status:"all",q:""};
   let editingId=null;
   let curRate=0;
-  let pendingDates=[];   // 当前编辑中的观看日期（键为 YYYY-M-D，与日历一致）
   let view="list";
   let calY=new Date().getFullYear(), calM=new Date().getMonth();
 
@@ -558,17 +548,51 @@
     return k;
   }
   function sortDates(a){return a.slice().sort((x,y)=>{const dx=keyToDate(x),dy=keyToDate(y);return (dx?dx.getTime():0)-(dy?dy.getTime():0);});}
+  function keyOf(d){return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();}
+  function minKey(arr){return arr.reduce((a,b)=>keyToDate(a)<keyToDate(b)?a:b);}
+  function maxKey(arr){return arr.reduce((a,b)=>keyToDate(a)>keyToDate(b)?a:b);}
+  /* 由开始/结束日期生成整段 marks（日历色条来源），两端都含 */
+  function buildMarks(sKey,eKey){
+    const m={};
+    if(!sKey) return m;
+    const s=keyToDate(sKey); if(!s) return m;
+    const e=keyToDate(eKey)||s;
+    let cur=new Date(s.getTime());
+    while(cur<=e){ m[keyOf(cur)]=true; cur.setDate(cur.getDate()+1); }
+    return m;
+  }
+  function fmtMd(k){const d=keyToDate(k); if(!d)return ""; return pad2(d.getMonth()+1)+"/"+pad2(d.getDate());}
+  function dateRangeText(it){
+    if(!it.start) return "";
+    const s=fmtMd(it.start);
+    let tail=(it.end && it.end!==it.start)?(" – "+fmtMd(it.end)):"";
+    if(!it.end && it.status==="watching") tail=" 起";
+    return '<span class="sep">·</span>'+s+tail;
+  }
+  /* 旧数据兼容 + 统一为「开始/结束 + marks」模型 */
+  function normalizeItems(arr){
+    arr.forEach(it=>{
+      if(!it.marks||typeof it.marks!=="object") it.marks={};
+      if(!it.start && it.last) it.start=it.last;
+      const ks=Object.keys(it.marks).filter(k=>it.marks[k]);
+      if(!it.start && ks.length) it.start=minKey(ks);
+      if(!it.end && ks.length) it.end=maxKey(ks);
+      if(!Object.keys(it.marks).length && it.start) it.marks=buildMarks(it.start,it.end);
+    });
+    return arr;
+  }
 
   function seed(){
-    const t=todayStr();
+    const t=new Date();
+    const d=n=>{const x=new Date(t);x.setDate(x.getDate()-n);return keyOf(x);};
     const s=[
-      {title:"繁花",cat:"tv",platform:"腾讯视频",status:"watching",current:20,total:30,unit:"集",perep:45,rating:5,review:"腔调十足",note:"黄河路的烟火气",added:Date.now()-86400000*3,updated:Date.now(),last:t},
-      {title:"三体",cat:"tv",platform:"腾讯视频",status:"done",current:30,total:30,unit:"集",perep:50,rating:5,review:"硬核",note:"",added:Date.now()-86400000*20,updated:Date.now()-86400000*5,last:""},
-      {title:"奥本海默",cat:"movie",platform:"影院",status:"done",current:180,total:180,unit:"分钟",perep:0,rating:5,review:"震撼",note:"",added:Date.now()-86400000*10,updated:Date.now()-86400000*10,last:""},
-      {title:"声入人心",cat:"variety",platform:"湖南卫视",status:"wish",current:0,total:12,unit:"集",perep:90,rating:0,review:"",note:"",added:Date.now()-86400000*2,updated:Date.now()-86400000*2,last:""},
-      {title:"间谍过家家",cat:"anime",platform:"B站",status:"watching",current:10,total:25,unit:"集",perep:24,rating:4,review:"温馨",note:"",added:Date.now()-86400000*5,updated:Date.now(),last:t},
-      {title:"日谈公园",cat:"podcast",platform:"小宇宙",status:"watching",current:3,total:0,unit:"期",perep:80,rating:4,review:"聊得透",note:"",added:Date.now()-86400000*4,updated:Date.now(),last:t},
-      {title:"地球脉动",cat:"doc",platform:"BBC",status:"wish",current:0,total:0,unit:"分钟",perep:0,rating:0,review:"",note:"",added:Date.now()-86400000*1,updated:Date.now()-86400000*1,last:""}
+      {title:"繁花",cat:"tv",platform:"腾讯视频",status:"watching",current:20,total:30,unit:"集",perep:45,rating:5,review:"腔调十足",note:"黄河路的烟火气",added:Date.now()-86400000*3,updated:Date.now(),start:d(3),end:d(0)},
+      {title:"三体",cat:"tv",platform:"腾讯视频",status:"done",current:30,total:30,unit:"集",perep:50,rating:5,review:"硬核",note:"",added:Date.now()-86400000*20,updated:Date.now()-86400000*5,start:d(20),end:d(5)},
+      {title:"奥本海默",cat:"movie",platform:"影院",status:"done",current:180,total:180,unit:"分钟",perep:0,rating:5,review:"震撼",note:"",added:Date.now()-86400000*10,updated:Date.now()-86400000*10,start:d(10),end:d(10)},
+      {title:"声入人心",cat:"variety",platform:"湖南卫视",status:"wish",current:0,total:12,unit:"集",perep:90,rating:0,review:"",note:"",added:Date.now()-86400000*2,updated:Date.now()-86400000*2,start:"",end:""},
+      {title:"间谍过家家",cat:"anime",platform:"B站",status:"watching",current:10,total:25,unit:"集",perep:24,rating:4,review:"温馨",note:"",added:Date.now()-86400000*5,updated:Date.now(),start:d(5),end:d(0)},
+      {title:"日谈公园",cat:"podcast",platform:"小宇宙",status:"watching",current:3,total:0,unit:"期",perep:80,rating:4,review:"聊得透",note:"",added:Date.now()-86400000*4,updated:Date.now(),start:d(4),end:d(0)},
+      {title:"地球脉动",cat:"doc",platform:"BBC",status:"wish",current:0,total:0,unit:"分钟",perep:0,rating:0,review:"",note:"",added:Date.now()-86400000*1,updated:Date.now()-86400000*1,start:"",end:""}
     ];
     s.forEach(x=>{x.id=uid();});
     return s;
@@ -605,24 +629,6 @@
     toastTimer=setTimeout(()=>t.classList.remove("show"),1800);
   }
 
-  function renderCatFilters(){
-    const box=document.getElementById("catFilters");
-    let html='<div class="chip'+(filter.cat==="all"?" active":"")+'" data-cat="all">全部</div>';
-    for(const k in CAT){
-      const c=CAT[k];
-      const cnt=items.filter(i=>i.cat===k).length;
-      html+='<div class="chip'+(filter.cat===k?" active":"")+'" data-cat="'+k+'"><span class="dot" style="background:'+c.color+'"></span>'+c.name+' <span style="opacity:.6;font-size:11px">'+cnt+'</span></div>';
-    }
-    html+='<div class="chip dashed" id="addCatChip">＋ 分类</div>';
-    box.innerHTML=html;
-    box.querySelectorAll(".chip").forEach(ch=>{
-      ch.onclick=()=>{
-        if(ch.id==="addCatChip"){openCatModal();return;}
-        filter.cat=ch.dataset.cat;renderCatFilters();renderList();
-      };
-    });
-  }
-
   function renderStats(){
     const total=items.length;
     const wish=items.filter(i=>i.status==="wish").length;
@@ -641,21 +647,19 @@
   function renderList(){
     const grid=document.getElementById("grid");
     let list=items.slice();
-    if(filter.cat!=="all") list=list.filter(i=>i.cat===filter.cat);
     if(filter.status!=="all") list=list.filter(i=>i.status===filter.status);
     if(filter.q){const q=filter.q.toLowerCase();list=list.filter(i=>(i.title+" "+(i.platform||"")).toLowerCase().includes(q));}
     list.sort((a,b)=>(b.updated||0)-(a.updated||0));
     if(!list.length){grid.innerHTML='<div class="empty">还没有记录，点右上角「＋ 添加」开始吧</div>';return;}
-    grid.innerHTML=list.map(it=>{
-      const c=CAT[it.cat]||CAT.tv;
+    grid.innerHTML=    list.map(it=>{
       const st=STATUS[it.status]||STATUS.wish;
       const p=pct(it);
       const progTxt= it.total>0 ? (it.current+" / "+it.total+" "+it.unit+" · "+p+"%") : (it.unit==="分钟"?("已看 "+it.current+" 分钟"):("已看 "+it.current+" "+it.unit));
+      let meta=(it.platform?'<span class="pf">'+esc(it.platform)+'</span>':'');
+      const dr=dateRangeText(it); if(dr) meta+=dr;
       return '<div class="card glass">'+
         (it.rating?'<div class="stars">'+stars(it.rating)+'</div>':'')+
-        '<div class="meta"><span class="dot" style="width:6px;height:6px;border-radius:50%;background:'+c.color+'"></span><span class="cn">'+c.name+'</span>'+
-          (it.platform?'<span class="sep">·</span><span class="pf">'+esc(it.platform)+'</span>':'')+
-        '</div>'+
+        '<div class="meta">'+meta+'</div>'+
         '<div class="name">'+esc(it.title)+'</div>'+
         '<div class="stat-line"><span class="sd" style="background:'+st.color+'"></span>'+st.name+'<span class="sep">·</span>'+progTxt+'</div>'+
         '<div class="bar"><i style="width:'+p+'%"></i></div>'+
@@ -689,12 +693,12 @@
   function markToday(id){
     const it=items.find(i=>i.id===id);if(!it)return;
     const t=todayStr();
-    it.last=t;
-    it.marks=it.marks||{};
-    it.marks[t]=true;
+    if(!it.start) it.start=t;
+    it.end=(it.end && keyToDate(t)<=keyToDate(it.end))?it.end:t;
+    it.marks=buildMarks(it.start,it.end);
     if(Number(it.total)>0 && Number(it.current)<Number(it.total)) it.current=Number(it.current)+1;
     else if(Number(it.total)>0) it.status="done";
-    it.updated=Date.now();
+    it.last=t;it.updated=Date.now();
     save();renderAll();
     toast("已记录今天看过「"+it.title+"」");
   }
@@ -720,14 +724,18 @@
     ];
     document.getElementById("reportStats").innerHTML=rs.map(r=>'<div class="rs"><div class="n">'+r.n+'</div><div class="t">'+r.t+'</div></div>').join("");
 
+    renderBadges();
+  }
+
+  function renderCatStats(){
     const counts={};let max=0;
     for(const k in CAT){counts[k]=items.filter(i=>i.cat===k).length;max=Math.max(max,counts[k]);}
-    document.getElementById("catBars").innerHTML=Object.keys(CAT).map(k=>{
+    const box=document.getElementById("catStatsBars");
+    if(!box) return;
+    box.innerHTML=Object.keys(CAT).map(k=>{
       const c=CAT[k];const v=counts[k];const w=max>0?Math.round(v/max*100):0;
       return '<div class="cat-bar"><span class="nm">'+c.name+'</span><span class="track"><i style="width:'+w+'%;background:'+c.color+'"></i></span><span class="vv">'+v+'</span></div>';
     }).join("");
-
-    renderBadges();
   }
 
   function renderBadges(){
@@ -772,33 +780,6 @@
     uSel.value=c.unit;
     document.getElementById("perEpWrap").style.display=(c.unit==="分钟")?"none":"block";
   }
-  function setDates(list){
-    const seen={};pendingDates=[];
-    sortDates((list||[]).map(k=>keyFromInput(inputFromKey(k))||k).filter(Boolean)).forEach(k=>{if(k&&!seen[k]){seen[k]=true;pendingDates.push(k);}});
-    renderDateChips();
-  }
-  function renderDateChips(){
-    const box=document.getElementById("datesList");
-    if(!pendingDates.length){
-      box.innerHTML='<span class="date-empty">未记录观看日期（日历中不会有色条）</span>';
-      return;
-    }
-    box.innerHTML=pendingDates.map(k=>{
-      const t=todayStr();
-      return '<span class="date-chip'+(k===t?" today":"")+'" data-k="'+k+'"><b>'+dateLabel(k)+'</b><i data-rm="'+k+'">×</i></span>';
-    }).join("");
-    box.querySelectorAll("i[data-rm]").forEach(el=>{
-      el.onclick=()=>{pendingDates=pendingDates.filter(x=>x!==el.dataset.rm);renderDateChips();};
-    });
-  }
-  function addDateFromInput(){
-    const inp=document.getElementById("f_date");
-    const k=keyFromInput(inp.value);
-    if(!k){toast("请先选择日期");return;}
-    if(pendingDates.indexOf(k)>=0){toast("这天已经记过了");return;}
-    pendingDates=sortDates(pendingDates.concat([k]));
-    renderDateChips();
-  }
   function openModal(id){
     editingId=id||null;
     document.getElementById("modalTitle").textContent=id?"编辑记录":"添加记录";
@@ -816,8 +797,8 @@
       document.getElementById("f_review").value=it.review||"";
       document.getElementById("f_note").value=it.note||"";
       setRate(it.rating||0);
-      setDates(Object.keys(it.marks||{}).filter(k=>it.marks[k]));
-      document.getElementById("f_date").value=inputFromKey(pendingDates.length?pendingDates[pendingDates.length-1]:todayStr());
+      document.getElementById("f_start").value=inputFromKey(it.start||"");
+      document.getElementById("f_end").value=inputFromKey(it.end||"");
     }else{
       document.getElementById("f_title").value="";
       document.getElementById("f_cat").value="tv";
@@ -829,8 +810,8 @@
       document.getElementById("f_review").value="";
       document.getElementById("f_note").value="";
       setRate(0);
-      setDates([todayStr()]);
-      document.getElementById("f_date").value=inputFromKey(todayStr());
+      document.getElementById("f_start").value=inputFromKey(todayStr());
+      document.getElementById("f_end").value="";
     }
     syncUnit();
     document.getElementById("mask").classList.add("show");
@@ -853,12 +834,14 @@
       review:document.getElementById("f_review").value.trim(),
       note:document.getElementById("f_note").value.trim()
     };
-    /* 观看日期 → marks（决定日历色条）。只认用户显式加入的日期，
-       避免编辑旧记录时把输入框里的默认「今天」静默写进去污染历史。 */
-    const dates=sortDates(pendingDates.slice()).filter(Boolean);
-    const marks={};dates.forEach(k=>{marks[k]=true;});
-    data.marks=marks;
-    data.last=dates.length?dates[dates.length-1]:"";
+    /* 开始 / 结束观看时间 → marks（决定日历色条区间） */
+    let sK=keyFromInput(document.getElementById("f_start").value);
+    let eK=keyFromInput(document.getElementById("f_end").value);
+    if(!sK && eK){sK=eK;eK="";}
+    if(sK && eK && keyToDate(eK)<keyToDate(sK)) eK=sK;
+    data.start=sK; data.end=eK;
+    data.marks=buildMarks(sK,eK);
+    data.last=eK||sK||"";
     const hadId=editingId;
     if(editingId){
       const it=items.find(i=>i.id===editingId);
@@ -907,11 +890,7 @@
       try{
         const d=JSON.parse(r.result);
         if(d.items&&Array.isArray(d.items)){
-          items=d.items;
-          items.forEach(it=>{
-            if(!it.marks||typeof it.marks!=="object") it.marks={};
-            if(it.last && !Object.keys(it.marks).length) it.marks[it.last]=true;
-          });
+          items=normalizeItems(d.items);
           if(d.cats&&typeof d.cats==="object"&&Object.keys(d.cats).length){CAT=d.cats;saveCats();}
           save();renderAll();
           toast("导入成功，共 "+items.length+" 条记录");
@@ -1015,7 +994,7 @@
     document.getElementById("viewCal").classList.toggle("hidden",v!=="cal");
     document.getElementById("viewData").classList.toggle("hidden",v!=="data");
     if(v==="cal") renderCal();
-    if(v==="data") renderSaveMeta();
+    if(v==="data"){renderSaveMeta();renderCatStats();}
     window.scrollTo({top:0,behavior:"smooth"});
   }
   function stepMonth(d){
@@ -1024,7 +1003,7 @@
     renderCal();
   }
   function gotoToday(){const n=new Date();calY=n.getFullYear();calM=n.getMonth();renderCal();}
-  function renderAll(){renderCatFilters();renderStats();renderList();renderReport();renderCal();renderSaveMeta();}
+  function renderAll(){renderStats();renderList();renderReport();renderCal();renderSaveMeta();renderCatStats();}
 
   document.getElementById("addBtn").onclick=()=>openModal(null);
   document.getElementById("cancelBtn").onclick=closeModal;
@@ -1045,14 +1024,12 @@
   document.querySelectorAll("#ratePick span").forEach(s=>{
     s.onclick=()=>setRate(Number(s.dataset.v));
   });
-  document.getElementById("addDateBtn").onclick=addDateFromInput;
-  document.getElementById("f_date").onchange=addDateFromInput;
-  document.getElementById("f_date").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();addDateFromInput();}};
   document.getElementById("saveDataBtn").onclick=saveData;
   document.getElementById("importBtn").onclick=()=>document.getElementById("importFile").click();
   document.getElementById("importFile").onchange=e=>{if(e.target.files[0])importData(e.target.files[0]);e.target.value="";};
   document.getElementById("clearBtn").onclick=clearData;
   document.getElementById("downloadReport").onclick=downloadReport;
+  document.getElementById("addCatBtn").onclick=openCatModal;
   document.getElementById("catCancel").onclick=closeCatModal;
   document.getElementById("catSave").onclick=saveCatModal;
   document.getElementById("catMask").onclick=e=>{if(e.target.id==="catMask")closeCatModal();};
