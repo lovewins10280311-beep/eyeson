@@ -195,6 +195,20 @@
     box-shadow:var(--shadow-soft);font-size:16px;color:var(--ink);outline:none;font-family:inherit;
   }
   .field textarea{resize:vertical;min-height:60px;}
+  .date-row{display:flex;gap:8px;align-items:center;}
+  .date-row input{flex:1 1 auto;min-width:0;}
+  .date-row .mini{flex:0 0 auto;}
+  .date-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+  .date-chip{
+    display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink);
+    background:var(--glass-strong);box-shadow:var(--shadow-soft);
+    padding:5px 9px;border-radius:999px;
+  }
+  .date-chip.today{background:var(--glass-strong);border:1px solid rgba(120,140,200,0.3);}
+  .date-chip b{font-weight:600;}
+  .date-chip i{cursor:pointer;font-style:normal;color:var(--ink-soft);font-size:14px;line-height:1;padding:0 1px;}
+  .date-chip i:hover{color:#e0537a;}
+  .date-empty{font-size:12px;color:var(--ink-soft);margin-top:8px;}
   .two{display:grid;grid-template-columns:1fr 1fr;gap:11px;}
   .rate-pick{display:flex;gap:6px;font-size:25px;cursor:pointer;}
   .rate-pick span{color:rgba(120,140,200,0.3);transition:transform .1s;}
@@ -381,6 +395,14 @@
       <label>平台 / 来源</label>
       <input id="f_platform" type="text" placeholder="例如：腾讯视频 / 爱奇艺 / B站 / 小宇宙 / 网易云">
     </div>
+    <div class="field">
+      <label>观看日期（决定日历色条，可补录历史）</label>
+      <div class="date-row">
+        <input id="f_date" type="date">
+        <button type="button" class="mini" id="addDateBtn">添加此日</button>
+      </div>
+      <div class="date-chips" id="datesList"></div>
+    </div>
     <div class="two">
       <div class="field">
         <label>进度（当前）</label>
@@ -492,6 +514,7 @@
   let filter={cat:"all",status:"all",q:""};
   let editingId=null;
   let curRate=0;
+  let pendingDates=[];   // 当前编辑中的观看日期（键为 YYYY-M-D，与日历一致）
   let view="list";
   let calY=new Date().getFullYear(), calM=new Date().getMonth();
 
@@ -506,6 +529,35 @@
   function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
   function todayStr(){const d=new Date();return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();}
   function year(){return new Date().getFullYear();}
+  /* 日期键统一为 YYYY-M-D（不补零），与日历渲染保持一致 */
+  function keyFromInput(v){
+    if(!v) return "";
+    const m=/^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(v.trim());
+    if(!m) return "";
+    return Number(m[1])+"-"+Number(m[2])+"-"+Number(m[3]);
+  }
+  function inputFromKey(k){
+    const m=/^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(k||"");
+    if(!m) return "";
+    return m[1]+"-"+pad2(Number(m[2]))+"-"+pad2(Number(m[3]));
+  }
+  function keyToDate(k){
+    const m=/^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(k||"");
+    if(!m) return null;
+    return new Date(Number(m[1]),Number(m[2])-1,Number(m[3]));
+  }
+  function dateLabel(k){
+    const t=todayStr();
+    if(k===t) return "今天";
+    const d=keyToDate(k);
+    if(d){
+      const y=new Date();
+      const yd=new Date(y.getFullYear(),y.getMonth(),y.getDate()-1);
+      if(d.getFullYear()===yd.getFullYear()&&d.getMonth()===yd.getMonth()&&d.getDate()===yd.getDate()) return "昨天";
+    }
+    return k;
+  }
+  function sortDates(a){return a.slice().sort((x,y)=>{const dx=keyToDate(x),dy=keyToDate(y);return (dx?dx.getTime():0)-(dy?dy.getTime():0);});}
 
   function seed(){
     const t=todayStr();
@@ -720,6 +772,33 @@
     uSel.value=c.unit;
     document.getElementById("perEpWrap").style.display=(c.unit==="分钟")?"none":"block";
   }
+  function setDates(list){
+    const seen={};pendingDates=[];
+    sortDates((list||[]).map(k=>keyFromInput(inputFromKey(k))||k).filter(Boolean)).forEach(k=>{if(k&&!seen[k]){seen[k]=true;pendingDates.push(k);}});
+    renderDateChips();
+  }
+  function renderDateChips(){
+    const box=document.getElementById("datesList");
+    if(!pendingDates.length){
+      box.innerHTML='<span class="date-empty">未记录观看日期（日历中不会有色条）</span>';
+      return;
+    }
+    box.innerHTML=pendingDates.map(k=>{
+      const t=todayStr();
+      return '<span class="date-chip'+(k===t?" today":"")+'" data-k="'+k+'"><b>'+dateLabel(k)+'</b><i data-rm="'+k+'">×</i></span>';
+    }).join("");
+    box.querySelectorAll("i[data-rm]").forEach(el=>{
+      el.onclick=()=>{pendingDates=pendingDates.filter(x=>x!==el.dataset.rm);renderDateChips();};
+    });
+  }
+  function addDateFromInput(){
+    const inp=document.getElementById("f_date");
+    const k=keyFromInput(inp.value);
+    if(!k){toast("请先选择日期");return;}
+    if(pendingDates.indexOf(k)>=0){toast("这天已经记过了");return;}
+    pendingDates=sortDates(pendingDates.concat([k]));
+    renderDateChips();
+  }
   function openModal(id){
     editingId=id||null;
     document.getElementById("modalTitle").textContent=id?"编辑记录":"添加记录";
@@ -737,6 +816,8 @@
       document.getElementById("f_review").value=it.review||"";
       document.getElementById("f_note").value=it.note||"";
       setRate(it.rating||0);
+      setDates(Object.keys(it.marks||{}).filter(k=>it.marks[k]));
+      document.getElementById("f_date").value=inputFromKey(pendingDates.length?pendingDates[pendingDates.length-1]:todayStr());
     }else{
       document.getElementById("f_title").value="";
       document.getElementById("f_cat").value="tv";
@@ -748,6 +829,8 @@
       document.getElementById("f_review").value="";
       document.getElementById("f_note").value="";
       setRate(0);
+      setDates([todayStr()]);
+      document.getElementById("f_date").value=inputFromKey(todayStr());
     }
     syncUnit();
     document.getElementById("mask").classList.add("show");
@@ -770,15 +853,23 @@
       review:document.getElementById("f_review").value.trim(),
       note:document.getElementById("f_note").value.trim()
     };
+    /* 观看日期 → marks（决定日历色条）。只认用户显式加入的日期，
+       避免编辑旧记录时把输入框里的默认「今天」静默写进去污染历史。 */
+    const dates=sortDates(pendingDates.slice()).filter(Boolean);
+    const marks={};dates.forEach(k=>{marks[k]=true;});
+    data.marks=marks;
+    data.last=dates.length?dates[dates.length-1]:"";
+    const hadId=editingId;
     if(editingId){
       const it=items.find(i=>i.id===editingId);
       Object.assign(it,data);it.updated=Date.now();
     }else{
-      data.id=uid();data.added=Date.now();data.updated=Date.now();data.last="";data.marks={};
+      data.id=uid();data.added=Date.now();data.updated=Date.now();
       items.push(data);
     }
     save();closeModal();renderAll();
-    toast(editingId?"已更新":"已添加「"+title+"」");
+    const extra=dates.length?("，已记入 "+dates.length+" 天"):"（未记录观看日期）";
+    toast(hadId?"已更新":"已添加「"+title+"」"+extra);
   }
 
   function openCatModal(){
@@ -954,6 +1045,9 @@
   document.querySelectorAll("#ratePick span").forEach(s=>{
     s.onclick=()=>setRate(Number(s.dataset.v));
   });
+  document.getElementById("addDateBtn").onclick=addDateFromInput;
+  document.getElementById("f_date").onchange=addDateFromInput;
+  document.getElementById("f_date").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();addDateFromInput();}};
   document.getElementById("saveDataBtn").onclick=saveData;
   document.getElementById("importBtn").onclick=()=>document.getElementById("importFile").click();
   document.getElementById("importFile").onchange=e=>{if(e.target.files[0])importData(e.target.files[0]);e.target.value="";};
