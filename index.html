@@ -509,6 +509,7 @@
   };
 
   let items=normalizeItems(load());
+  try{ensureItemColors();save();}catch(e){}   /* 老数据首次进入即补齐唯一色并落盘 */
   let filter={status:"all",q:""};
   let editingId=null;
   let curRate=0;
@@ -524,15 +525,33 @@
   }
   function save(){localStorage.setItem(KEY,JSON.stringify({items:items,seeded:true}));}
   function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
-  /* 每部作品一个专属颜色（参考追文记：不按分类，按作品分配） */
+  /* 每部作品一个专属颜色（对齐追文记：全局唯一色，不按分类） */
   function colorOf(it){return it.color||(CAT[it.cat]&&CAT[it.cat].color)||PALETTE[0];}
-  function pickColor(list){
-    const src=list||items;
-    const used={};
-    src.forEach(i=>{const c=i.color||colorOf(i);used[c]=(used[c]||0)+1;});
-    let best=PALETTE[0],bn=Infinity;
-    PALETTE.forEach(c=>{const n=used[c]||0;if(n<bn){bn=n;best=c;}});
-    return best;
+  function hslToHex(h,s,l){
+    s/=100;l/=100;const k=n=>(n+h/30)%12;const a=s*Math.min(l,1-l);
+    const f=n=>l-a*Math.max(-1,Math.min(k(n)-3,Math.min(9-k(n),1)));
+    const to=x=>Math.round(255*x).toString(16).padStart(2,'0');
+    return '#'+to(f(0))+to(f(8))+to(f(4));
+  }
+  /* 取下一个「未占用」的颜色：色板内优先；色板用完后按黄金角生成，保证永不重复 */
+  let _genSeq=0;
+  function nextItemColor(used){
+    for(const c of PALETTE) if(!used.has(c)) return c;
+    while(true){
+      _genSeq++;
+      const c=hslToHex((_genSeq*137.508)%360,45+(_genSeq%5)*4,70+(_genSeq%6)*3);
+      if(!used.has(c)) return c;
+    }
+  }
+  /* 给所有作品补齐唯一色：已有色按片名顺序优先保留，缺失/冲突才重新分配；删除后颜色自动回收复用 */
+  function ensureItemColors(){
+    const used=new Set();let changed=false;
+    items.slice().sort((a,b)=>(a.title||"").localeCompare(b.title||"")||String(a.id).localeCompare(String(b.id)))
+      .forEach(it=>{
+        if(it.color&&!used.has(it.color)){used.add(it.color);return;}
+        it.color=nextItemColor(used);used.add(it.color);changed=true;
+      });
+    return changed;
   }
   function todayStr(){const d=new Date();return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();}
   function year(){return new Date().getFullYear();}
@@ -595,15 +614,6 @@
       if(!it.start && ks.length) it.start=minKey(ks);
       if(!it.end && ks.length) it.end=maxKey(ks);
       if(!Object.keys(it.marks).length && it.start) it.marks=buildMarks(it.start,it.end);
-    });
-    /* 老数据补发专属颜色：按现有顺序取当前占用最少的颜色，保证尽量不重复 */
-    const taken={};arr.forEach(it=>{if(it.color)taken[it.color]=(taken[it.color]||0)+1;});
-    arr.forEach(it=>{
-      if(!it.color){
-        let best=PALETTE[0],bn=Infinity;
-        PALETTE.forEach(c=>{const n=taken[c]||0;if(n<bn){bn=n;best=c;}});
-        it.color=best;taken[best]=bn+1;
-      }
     });
     return arr;
   }
@@ -878,8 +888,8 @@
       Object.assign(it,data);it.updated=Date.now();
     }else{
       data.id=uid();data.added=Date.now();data.updated=Date.now();
-      data.color=pickColor();
       items.push(data);
+      ensureItemColors();
     }
     save();closeModal();renderAll();
     const dayCnt=Object.keys(data.marks||{}).length;
@@ -925,6 +935,7 @@
         if(d.items&&Array.isArray(d.items)){
           items=normalizeItems(d.items);
           if(d.cats&&typeof d.cats==="object"&&Object.keys(d.cats).length){CAT=d.cats;saveCats();}
+          ensureItemColors();
           save();renderAll();
           toast("导入成功，共 "+items.length+" 条记录");
         }else alert("文件格式不正确");
