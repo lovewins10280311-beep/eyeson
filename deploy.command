@@ -49,7 +49,7 @@ echo "✅ 已推送！Cloudflare 正在自动部署到 eyeson-me.pages.dev（硬
 echo "   如需回滚: cp \"$BACKUP_DIR/eyeson_${TS}.html\" \"$DEPLOYED\" && git add index.html && git commit -m '回滚到 ${TS}' && git push"
 echo "▶ 等待 Cloudflare 重新部署(约 8 秒)后打开验收页面…"
 sleep 8
-open "https://eyeson-me.pages.dev" || true
+(open "https://eyeson-me.pages.dev" &) || true
 echo "   已打开 eyeson-me.pages.dev，若看到旧版请 Cmd+Shift+R 硬刷新。"
 
 if [ -t 0 ]; then
