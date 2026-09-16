@@ -194,6 +194,8 @@
   .cal-more{font-size:10.5px;color:var(--ink-soft);padding-left:2px;}
 
   @media(max-width:720px){
+    .head-spacer{display:none;}
+    header.top{align-items:stretch;}
     .stats{grid-template-columns:repeat(3,1fr);}
     .report-grid{grid-template-columns:1fr;}
     .search{max-width:none;}
@@ -201,6 +203,13 @@
     .cal-cell{min-height:78px;}
     .cal-dn{font-size:11px;}
     .cal-row{height:14px;font-size:10px;padding:0 4px;}
+  }
+  @media(max-width:480px){
+    .stats{grid-template-columns:repeat(2,1fr);}
+    .cal-cell{min-height:64px;padding:5px 4px;}
+    .cal-dn{font-size:10px;}
+    .cal-row{height:13px;font-size:9px;padding:0 3px;}
+    .grid{grid-template-columns:1fr;}
   }
 </style>
 </head>
