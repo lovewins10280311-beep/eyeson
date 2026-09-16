@@ -22,7 +22,7 @@
     --c-dropped:#c3b1e6;
   }
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-  html,body{height:100%;}
+  html{height:100%;overflow-x:hidden;overscroll-behavior:none;}
   body{
     font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
     color:var(--ink);
@@ -32,6 +32,7 @@
     padding:20px 16px 118px;
     position:relative;
     overflow-x:hidden;
+    overscroll-behavior:none;
   }
   body::before,body::after{
     content:"";position:fixed;border-radius:50%;filter:blur(70px);opacity:0.5;z-index:0;pointer-events:none;
@@ -183,20 +184,26 @@
     box-shadow:0 5px 14px rgba(120,140,200,0.2);
   }
 
-  .mask{position:fixed;inset:0;background:rgba(80,90,130,0.28);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:60;padding:18px;}
-  .mask.show{display:flex;}
-  .modal{width:100%;max-width:480px;max-height:90vh;overflow:auto;padding:22px;animation:pop .18s ease;}
+  .mask{position:fixed;inset:0;background:rgba(80,90,130,0.28);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:60;padding:18px;overflow:hidden;}
+  .mask.show{display:flex;touch-action:none;-webkit-overflow-scrolling:unset;}
+  .modal{width:100%;max-width:min(480px,calc(100vw - 28px));max-height:88dvh;overflow:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:22px;animation:pop .18s ease;}
   @keyframes pop{from{transform:scale(.96);opacity:.6;}to{transform:scale(1);opacity:1;}}
   .modal h3{font-size:17px;margin-bottom:16px;}
-  .field{margin-bottom:13px;}
+  .field{margin-bottom:13px;min-width:0;}
   .field label{display:block;font-size:12px;color:var(--ink-soft);margin-bottom:5px;}
   .field input,.field select,.field textarea{
-    width:100%;padding:10px 13px;border:none;border-radius:12px;background:var(--glass-strong);
+    width:100%;height:46px;line-height:1.2;padding:10px 13px;border:none;border-radius:12px;background:var(--glass-strong);
     box-shadow:var(--shadow-soft);font-size:16px;color:var(--ink);outline:none;font-family:inherit;
   }
-  .field textarea{resize:vertical;min-height:60px;}
+  .field textarea{height:auto;resize:vertical;min-height:64px;}
+  /* iOS 对 date 控件硬编码最小宽度/高度，强制与文本输入一致并左对齐 */
+  .field input[type=date]{
+    min-width:0;width:100%!important;box-sizing:border-box!important;-webkit-appearance:none;appearance:none;
+    height:46px!important;line-height:1.2;padding:11px 13px;text-align:left;
+  }
   .field-hint{font-size:11.5px;color:var(--ink-soft);margin:-7px 0 7px;line-height:1.5;}
-  .two{display:grid;grid-template-columns:1fr 1fr;gap:11px;}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:11px;min-width:0;}
+  .two>*{min-width:0;}
   .rate-pick{display:flex;gap:6px;font-size:25px;cursor:pointer;}
   .rate-pick span{color:rgba(120,140,200,0.3);transition:transform .1s;}
   .rate-pick span.on{color:#ffb84d;}
@@ -780,6 +787,9 @@
     uSel.value=c.unit;
     document.getElementById("perEpWrap").style.display=(c.unit==="分钟")?"none":"block";
   }
+  let _scrollY=0;
+  function lockScroll(){_scrollY=window.scrollY||document.documentElement.scrollTop||0;document.documentElement.style.overflow='hidden';document.body.style.overflow='hidden';document.body.style.position='fixed';document.body.style.width='100%';document.body.style.top=(-_scrollY)+'px';}
+  function unlockScroll(){document.documentElement.style.overflow='';document.body.style.overflow='';document.body.style.position='';document.body.style.width='';document.body.style.top='';window.scrollTo(0,_scrollY);}
   function openModal(id){
     editingId=id||null;
     document.getElementById("modalTitle").textContent=id?"编辑记录":"添加记录";
@@ -814,9 +824,10 @@
       document.getElementById("f_end").value="";
     }
     syncUnit();
+    lockScroll();
     document.getElementById("mask").classList.add("show");
   }
-  function closeModal(){document.getElementById("mask").classList.remove("show");}
+  function closeModal(){unlockScroll();document.getElementById("mask").classList.remove("show");}
 
   function saveModal(){
     const title=document.getElementById("f_title").value.trim();
@@ -859,9 +870,10 @@
     document.getElementById("cat_name").value="";
     document.getElementById("cat_unit").value="集";
     document.getElementById("cat_color").value=PALETTE[Object.keys(CAT).length % PALETTE.length];
+    lockScroll();
     document.getElementById("catMask").classList.add("show");
   }
-  function closeCatModal(){document.getElementById("catMask").classList.remove("show");}
+  function closeCatModal(){unlockScroll();document.getElementById("catMask").classList.remove("show");}
   function saveCatModal(){
     const nm=document.getElementById("cat_name").value.trim();
     if(!nm){alert("请填写分类名称");return;}
