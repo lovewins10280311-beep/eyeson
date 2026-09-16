@@ -29,7 +29,7 @@
     background:linear-gradient(135deg,#a8d8ff 0%,#cfeffe 38%,#ffd9ec 100%);
     background-attachment:fixed;
     min-height:100vh;
-    padding:22px 16px 60px;
+    padding:20px 16px 118px;
     position:relative;
     overflow-x:hidden;
   }
@@ -50,134 +50,174 @@
     border-radius:var(--radius);
   }
 
-  header.top{padding:22px 26px;margin-bottom:18px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;}
-  .title-block h1{font-size:24px;font-weight:700;letter-spacing:1px;}
-  .title-block p{font-size:13px;color:var(--ink-soft);margin-top:3px;}
-  .head-spacer{flex:1 1 auto;}
-  .search{position:relative;flex:1 1 220px;max-width:320px;}
+  /* ---------- 顶栏：搜索 + 添加 始终同一行 ---------- */
+  header.top{padding:16px 20px;margin-bottom:13px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .title-block{flex:1 1 auto;min-width:0;}
+  .title-block h1{font-size:22px;font-weight:700;letter-spacing:1px;}
+  .title-block p{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+  .head-row{display:flex;align-items:center;gap:9px;flex:1 1 300px;max-width:470px;min-width:0;flex-wrap:nowrap;}
+  .search{position:relative;flex:1 1 auto;min-width:0;}
   .search input{
-    width:100%;padding:11px 16px 11px 38px;border:none;border-radius:14px;
-    background:var(--glass-strong);box-shadow:var(--shadow-soft);font-size:14px;color:var(--ink);outline:none;
+    width:100%;padding:10px 14px 10px 36px;border:none;border-radius:13px;
+    background:var(--glass-strong);box-shadow:var(--shadow-soft);font-size:13.5px;color:var(--ink);outline:none;
   }
   .search input::placeholder{color:var(--ink-soft);}
-  .search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);opacity:.5;}
+  .search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);opacity:.5;}
   .btn{
-    border:none;cursor:pointer;font-size:14px;font-weight:600;color:#fff;
+    border:none;cursor:pointer;font-size:13.5px;font-weight:600;color:#fff;
     background:linear-gradient(135deg,var(--blue),var(--pink));
-    padding:11px 20px;border-radius:14px;box-shadow:0 6px 16px rgba(120,140,200,0.3);
-    transition:transform .12s ease, box-shadow .12s ease;white-space:nowrap;
+    padding:10px 18px;border-radius:13px;box-shadow:0 6px 16px rgba(120,140,200,0.3);
+    transition:transform .12s ease, box-shadow .12s ease;white-space:nowrap;flex:0 0 auto;
   }
   .btn:hover{transform:translateY(-1px);box-shadow:0 9px 22px rgba(120,140,200,0.4);}
   .btn:active{transform:translateY(0);}
   .btn.ghost{background:var(--glass-strong);color:var(--ink);box-shadow:var(--shadow-soft);}
+  .btn.ghost:hover{background:#fff;}
+  .btn.ghost.danger{color:#e06a8b;}
 
-  .filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;}
+  /* ---------- 筛选：单行横向滑动，不再占大块 ---------- */
+  .filters{display:flex;gap:7px;flex-wrap:nowrap;overflow-x:auto;margin-bottom:9px;padding-bottom:2px;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+  .filters::-webkit-scrollbar{display:none;}
   .chip{
-    border:1px solid var(--glass-border);background:var(--glass);cursor:pointer;
-    padding:8px 15px;border-radius:999px;font-size:13px;color:var(--ink);
-    box-shadow:var(--shadow-soft);transition:all .15s ease;user-select:none;display:flex;align-items:center;gap:6px;
+    border:1px solid var(--glass-border);background:var(--glass);cursor:pointer;flex:0 0 auto;
+    padding:6px 12px;border-radius:999px;font-size:12.5px;color:var(--ink);
+    box-shadow:var(--shadow-soft);transition:all .15s ease;user-select:none;display:flex;align-items:center;gap:5px;
   }
   .chip:hover{background:var(--glass-strong);}
   .chip.active{background:#fff;color:var(--ink);border-color:var(--glass-border);font-weight:700;box-shadow:0 4px 12px rgba(120,140,200,0.18);}
-  .chip .dot{width:7px;height:7px;border-radius:50%;}
+  .chip .dot{width:6px;height:6px;border-radius:50%;flex:0 0 auto;}
   .chip.dashed{border-style:dashed;color:var(--ink-soft);}
 
-  .filter-row{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:16px;}
-  .filter-group{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
-  .filter-group .lbl{font-size:12px;color:var(--ink-soft);margin-right:2px;}
+  .filter-row{display:flex;gap:10px;align-items:center;margin-bottom:12px;}
+  .filter-group{display:flex;gap:6px;align-items:center;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:1px;}
+  .filter-group::-webkit-scrollbar{display:none;}
+  .filter-group .lbl{font-size:11.5px;color:var(--ink-soft);flex:0 0 auto;margin-right:1px;}
   .pill{
-    cursor:pointer;padding:6px 13px;border-radius:999px;font-size:12.5px;
+    cursor:pointer;padding:5px 12px;border-radius:999px;font-size:12px;flex:0 0 auto;
     background:var(--glass);border:1px solid var(--glass-border);color:var(--ink);box-shadow:var(--shadow-soft);
     transition:all .15s ease;user-select:none;
   }
   .pill:hover{background:var(--glass-strong);}
   .pill.active{background:#fff;color:var(--ink);border-color:var(--glass-border);font-weight:700;box-shadow:0 4px 12px rgba(120,140,200,0.18);}
 
-  .stats{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:20px;}
-  .stat{padding:16px 14px;text-align:center;}
-  .stat .num{font-size:26px;font-weight:700;background:linear-gradient(135deg,var(--blue),var(--pink));-webkit-background-clip:text;background-clip:text;color:transparent;}
-  .stat .lbl{font-size:12px;color:var(--ink-soft);margin-top:4px;}
+  /* ---------- 统计：紧凑 ---------- */
+  .stats{display:grid;grid-template-columns:repeat(6,1fr);gap:9px;margin-bottom:14px;}
+  .stat{padding:11px 8px;text-align:center;}
+  .stat .num{font-size:19px;font-weight:700;background:linear-gradient(135deg,var(--blue),var(--pink));-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .stat .lbl{font-size:11px;color:var(--ink-soft);margin-top:2px;}
 
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:16px;}
-  .card{padding:16px;display:flex;flex-direction:column;gap:11px;position:relative;transition:transform .15s ease,box-shadow .15s ease;}
-  .card:hover{transform:translateY(-3px);box-shadow:0 14px 36px rgba(120,140,200,0.26);}
-  .card .cat{font-size:11.5px;color:var(--ink-soft);display:flex;align-items:center;gap:5px;padding-right:82px;}
-  .card .name{font-size:17px;font-weight:700;line-height:1.35;padding-right:90px;}
-  .card .plat{display:inline-block;font-size:11.5px;color:var(--blue);background:rgba(91,157,249,0.12);padding:3px 10px;border-radius:999px;width:fit-content;}
-  .card .status-line{font-size:12.5px;color:var(--ink-soft);display:flex;align-items:center;gap:7px;}
-  .card .status-line .sd{width:9px;height:9px;border-radius:50%;}
-  .bar{height:8px;border-radius:999px;background:rgba(120,140,200,0.16);overflow:hidden;}
+  /* ---------- 卡片：展示型轻卡片 ---------- */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(228px,1fr));gap:11px;}
+  .card{padding:13px 14px;display:flex;flex-direction:column;gap:7px;position:relative;transition:transform .15s ease,box-shadow .15s ease;}
+  .card:hover{transform:translateY(-2px);box-shadow:0 12px 30px rgba(120,140,200,0.24);}
+  .card .meta{font-size:11.5px;color:var(--ink-soft);display:flex;align-items:center;gap:5px;padding-right:74px;white-space:nowrap;overflow:hidden;}
+  .card .meta .cn{flex:0 0 auto;}
+  .card .meta .pf{overflow:hidden;text-overflow:ellipsis;}
+  .card .meta .sep{opacity:.55;flex:0 0 auto;}
+  .card .name{font-size:15.5px;font-weight:700;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .card .stat-line{font-size:11.5px;color:var(--ink-soft);display:flex;align-items:center;gap:6px;}
+  .card .stat-line .sd{width:7px;height:7px;border-radius:50%;flex:0 0 auto;}
+  .bar{height:6px;border-radius:999px;background:rgba(120,140,200,0.16);overflow:hidden;}
   .bar > i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--blue),var(--pink));opacity:.72;}
-  .card .pct{font-size:12px;color:var(--ink-soft);}
-  .card .stars{position:absolute;top:15px;right:15px;font-size:13.5px;letter-spacing:1px;color:#ffb84d;line-height:1;}
+  .card .stars{position:absolute;top:13px;right:14px;font-size:12.5px;letter-spacing:.5px;color:#ffb84d;line-height:1;}
   .stars .off{color:rgba(120,140,200,0.25);}
-  .card .acts{display:flex;gap:8px;margin-top:2px;}
+  .card .acts{display:flex;gap:6px;margin-top:1px;}
   .mini{
-    flex:1;border:none;cursor:pointer;font-size:12.5px;font-weight:600;padding:8px 0;border-radius:11px;
-    background:var(--glass-strong);color:var(--ink);box-shadow:var(--shadow-soft);transition:all .12s ease;
+    flex:1;border:none;cursor:pointer;font-size:12px;font-weight:600;padding:7px 0;border-radius:10px;
+    background:var(--glass-strong);color:var(--ink);box-shadow:var(--shadow-soft);transition:all .12s ease;white-space:nowrap;
   }
   .mini:hover{background:#fff;}
   .mini.primary{background:linear-gradient(135deg,var(--blue),var(--pink));color:#fff;box-shadow:0 5px 14px rgba(120,140,200,0.26);}
   .mini.danger{color:#e06a8b;}
-  .empty{grid-column:1/-1;text-align:center;color:var(--ink-soft);padding:50px 0;font-size:14px;}
+  .empty{grid-column:1/-1;text-align:center;color:var(--ink-soft);padding:44px 0;font-size:13.5px;}
 
-  .sec-title{display:flex;align-items:center;gap:10px;margin:30px 0 14px;}
-  .sec-title h2{font-size:18px;font-weight:700;}
+  .sec-title{display:flex;align-items:center;gap:10px;margin:20px 0 11px;}
+  .sec-title h2{font-size:16px;font-weight:700;}
   .sec-title .line{flex:1;height:1px;background:linear-gradient(90deg,rgba(120,140,200,0.25),transparent);}
 
-  .report-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;}
-  .report-card{padding:22px;}
-  .report-card h3{font-size:16px;margin-bottom:14px;}
-  .report-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:16px;}
-  .rs{background:var(--glass-strong);border-radius:14px;padding:13px 15px;box-shadow:var(--shadow-soft);}
-  .rs .n{font-size:22px;font-weight:700;background:linear-gradient(135deg,var(--blue),var(--pink));-webkit-background-clip:text;background-clip:text;color:transparent;}
-  .rs .t{font-size:11.5px;color:var(--ink-soft);margin-top:3px;}
-  .cat-bars{display:flex;flex-direction:column;gap:9px;}
-  .cat-bar{display:flex;align-items:center;gap:10px;font-size:12.5px;}
-  .cat-bar .nm{width:64px;color:var(--ink-soft);flex:0 0 auto;}
-  .cat-bar .track{flex:1;height:9px;border-radius:999px;background:rgba(120,140,200,0.16);overflow:hidden;}
+  /* ---------- 数据 / 报告 ---------- */
+  .data-card{padding:17px 19px;display:flex;flex-direction:column;gap:12px;}
+  .data-card .hint{font-size:12.5px;color:var(--ink-soft);line-height:1.7;}
+  .data-card .meta-line{font-size:12px;color:var(--ink-soft);}
+  .data-acts{display:flex;gap:9px;flex-wrap:wrap;}
+  .data-acts .btn{flex:1 1 130px;text-align:center;}
+
+  .report-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:13px;}
+  .report-card{padding:19px;}
+  .report-card h3{font-size:15px;margin-bottom:12px;}
+  .report-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px;}
+  .rs{background:var(--glass-strong);border-radius:13px;padding:11px 13px;box-shadow:var(--shadow-soft);}
+  .rs .n{font-size:20px;font-weight:700;background:linear-gradient(135deg,var(--blue),var(--pink));-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .rs .t{font-size:11px;color:var(--ink-soft);margin-top:2px;}
+  .cat-bars{display:flex;flex-direction:column;gap:8px;}
+  .cat-bar{display:flex;align-items:center;gap:9px;font-size:12px;}
+  .cat-bar .nm{width:60px;color:var(--ink-soft);flex:0 0 auto;}
+  .cat-bar .track{flex:1;height:8px;border-radius:999px;background:rgba(120,140,200,0.16);overflow:hidden;}
   .cat-bar .track > i{display:block;height:100%;border-radius:999px;opacity:.7;}
-  .cat-bar .vv{width:34px;text-align:right;color:var(--ink-soft);flex:0 0 auto;}
-  .badges{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;}
+  .cat-bar .vv{width:30px;text-align:right;color:var(--ink-soft);flex:0 0 auto;}
+  .badges{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;}
   .badge{
-    display:flex;align-items:center;gap:8px;padding:9px 13px;border-radius:14px;font-size:12.5px;
+    display:flex;align-items:center;gap:7px;padding:8px 12px;border-radius:13px;font-size:12px;
     background:var(--glass-strong);box-shadow:var(--shadow-soft);opacity:.4;filter:grayscale(.6);transition:all .2s ease;
   }
   .badge.on{opacity:1;filter:none;background:linear-gradient(135deg,rgba(91,157,249,0.18),rgba(255,143,196,0.18));}
-  .badge .bd{width:10px;height:10px;border-radius:50%;flex:0 0 auto;}
+  .badge .bd{width:9px;height:9px;border-radius:50%;flex:0 0 auto;}
 
-  .data-bar{display:flex;gap:10px;flex-wrap:wrap;margin-top:26px;padding:16px 20px;align-items:center;}
-  .data-bar .hint{font-size:12.5px;color:var(--ink-soft);flex:1 1 200px;}
+  /* ---------- 底部 tab ---------- */
+  .bottom-nav{
+    position:fixed;left:50%;transform:translateX(-50%);bottom:14px;
+    width:calc(100% - 32px);max-width:420px;display:flex;gap:6px;padding:7px;z-index:45;
+    background:rgba(255,255,255,0.74);
+    backdrop-filter:blur(20px) saturate(150%);
+    -webkit-backdrop-filter:blur(20px) saturate(150%);
+    border:1px solid var(--glass-border);
+    border-radius:22px;box-shadow:0 12px 34px rgba(120,140,200,0.26);
+  }
+  .bottom-nav .tab{
+    flex:1;text-align:center;padding:10px 0;border-radius:16px;font-size:13.5px;font-weight:600;
+    color:var(--ink-soft);cursor:pointer;user-select:none;transition:all .18s ease;
+  }
+  .bottom-nav .tab:hover{color:var(--ink);}
+  .bottom-nav .tab.active{
+    color:#fff;background:linear-gradient(135deg,var(--blue),var(--pink));
+    box-shadow:0 6px 16px rgba(120,140,200,0.32);
+  }
 
-  .mask{position:fixed;inset:0;background:rgba(80,90,130,0.28);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:50;padding:18px;}
+  .mask{position:fixed;inset:0;background:rgba(80,90,130,0.28);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:60;padding:18px;}
   .mask.show{display:flex;}
-  .modal{width:100%;max-width:480px;max-height:90vh;overflow:auto;padding:24px;animation:pop .18s ease;}
+  .modal{width:100%;max-width:480px;max-height:90vh;overflow:auto;padding:22px;animation:pop .18s ease;}
   @keyframes pop{from{transform:scale(.96);opacity:.6;}to{transform:scale(1);opacity:1;}}
-  .modal h3{font-size:18px;margin-bottom:18px;}
-  .field{margin-bottom:14px;}
-  .field label{display:block;font-size:12.5px;color:var(--ink-soft);margin-bottom:6px;}
+  .modal h3{font-size:17px;margin-bottom:16px;}
+  .field{margin-bottom:13px;}
+  .field label{display:block;font-size:12px;color:var(--ink-soft);margin-bottom:5px;}
   .field input,.field select,.field textarea{
     width:100%;padding:10px 13px;border:none;border-radius:12px;background:var(--glass-strong);
     box-shadow:var(--shadow-soft);font-size:14px;color:var(--ink);outline:none;font-family:inherit;
   }
-  .field textarea{resize:vertical;min-height:64px;}
-  .two{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-  .rate-pick{display:flex;gap:6px;font-size:26px;cursor:pointer;}
+  .field textarea{resize:vertical;min-height:60px;}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:11px;}
+  .rate-pick{display:flex;gap:6px;font-size:25px;cursor:pointer;}
   .rate-pick span{color:rgba(120,140,200,0.3);transition:transform .1s;}
   .rate-pick span.on{color:#ffb84d;}
   .rate-pick span:active{transform:scale(1.2);}
-  .modal-acts{display:flex;gap:10px;margin-top:8px;}
+  .modal-acts{display:flex;gap:10px;margin-top:6px;}
   .modal-acts .btn{flex:1;}
   .hidden{display:none !important;}
 
+  .toast{
+    position:fixed;left:50%;bottom:98px;transform:translateX(-50%) translateY(10px);
+    background:rgba(74,74,90,0.92);color:#fff;font-size:13px;padding:10px 18px;border-radius:14px;
+    z-index:90;opacity:0;transition:all .22s ease;pointer-events:none;white-space:nowrap;max-width:80vw;overflow:hidden;text-overflow:ellipsis;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
   /* 月历（参考追文记 Apple 风格月视图） */
-  .view-row{margin-bottom:16px;}
-  .cal-card{padding:20px;margin-bottom:20px;}
-  .cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;}
-  .cal-title{font-size:19px;font-weight:700;letter-spacing:.5px;}
-  .cal-nav{display:flex;gap:8px;}
-  .cal-nav .mini{flex:0 0 auto;padding:8px 15px;border-radius:11px;}
-  .cal-week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:8px;}
+  .cal-card{padding:18px;}
+  .cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:9px;}
+  .cal-title{font-size:18px;font-weight:700;letter-spacing:.5px;}
+  .cal-nav{display:flex;gap:7px;}
+  .cal-nav .mini{flex:0 0 auto;padding:7px 14px;border-radius:11px;}
+  .cal-week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:7px;}
   .cal-week span{text-align:center;font-size:12px;color:var(--ink-soft);padding:4px 0;}
   .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
   .cal-cell{background:var(--glass-strong);border-radius:12px;min-height:100px;padding:6px 7px;box-shadow:var(--shadow-soft);display:flex;flex-direction:column;gap:3px;overflow:hidden;border:1.5px solid transparent;}
@@ -194,22 +234,26 @@
   .cal-more{font-size:10.5px;color:var(--ink-soft);padding-left:2px;}
 
   @media(max-width:720px){
-    .head-spacer{display:none;}
-    header.top{align-items:stretch;}
-    .stats{grid-template-columns:repeat(3,1fr);}
+    .title-block{flex:1 1 100%;}
+    .head-row{flex:1 1 100%;max-width:none;}
+    .btn{padding:10px 15px;font-size:13px;}
+    .stats{grid-template-columns:repeat(3,1fr);gap:8px;}
+    .stat{padding:9px 6px;}
+    .stat .num{font-size:17px;}
     .report-grid{grid-template-columns:1fr;}
-    .search{max-width:none;}
-    header.top{gap:12px;}
     .cal-cell{min-height:78px;}
     .cal-dn{font-size:11px;}
     .cal-row{height:14px;font-size:10px;padding:0 4px;}
   }
   @media(max-width:480px){
-    .stats{grid-template-columns:repeat(2,1fr);}
+    body{padding:16px 13px 112px;}
+    header.top{padding:14px 16px;}
+    .stats{grid-template-columns:repeat(3,1fr);}
+    .grid{grid-template-columns:1fr;}
     .cal-cell{min-height:64px;padding:5px 4px;}
     .cal-dn{font-size:10px;}
     .cal-row{height:13px;font-size:9px;padding:0 3px;}
-    .grid{grid-template-columns:1fr;}
+    .data-acts .btn{flex:1 1 100%;}
   }
 </style>
 </head>
@@ -221,78 +265,91 @@
       <h1>eyes on</h1>
       <p>电视剧 · 电影 · 综艺 · 动漫 · 播客 · 纪录片，一站记录（分类可自定义）</p>
     </div>
-    <div class="head-spacer"></div>
-    <div class="search">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input id="search" type="text" placeholder="搜索片名 / 平台…" />
+    <div class="head-row">
+      <div class="search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="search" type="text" placeholder="搜索片名 / 平台…" />
+      </div>
+      <button class="btn" id="addBtn">＋ 添加</button>
     </div>
-    <button class="btn" id="addBtn">＋ 添加</button>
   </header>
 
-  <div class="filter-row view-row">
-    <div class="filter-group">
-      <span class="lbl">视图</span>
-      <span class="pill active" data-view="list">档案</span>
-      <span class="pill" data-view="cal">日历</span>
-    </div>
-  </div>
+  <!-- ============ 档案 ============ -->
+  <section id="viewList">
+    <div class="filters" id="catFilters"></div>
 
-  <div class="filters" id="catFilters"></div>
-
-  <div class="filter-row" id="statusRow">
-    <div class="filter-group">
-      <span class="lbl">状态</span>
-      <span class="pill active" data-status="all">全部</span>
-      <span class="pill" data-status="wish">想看</span>
-      <span class="pill" data-status="watching">在看</span>
-      <span class="pill" data-status="done">看过</span>
-      <span class="pill" data-status="dropped">弃剧</span>
-    </div>
-  </div>
-
-  <div class="stats" id="stats"></div>
-
-  <div class="grid" id="grid"></div>
-
-  <div class="cal-card glass hidden" id="calCard">
-    <div class="cal-head">
-      <div class="cal-title" id="calTitle"></div>
-      <div class="cal-nav">
-        <button class="mini" id="calPrev">‹ 上月</button>
-        <button class="mini" id="calToday">今天</button>
-        <button class="mini" id="calNext">下月 ›</button>
+    <div class="filter-row" id="statusRow">
+      <div class="filter-group">
+        <span class="lbl">状态</span>
+        <span class="pill active" data-status="all">全部</span>
+        <span class="pill" data-status="wish">想看</span>
+        <span class="pill" data-status="watching">在看</span>
+        <span class="pill" data-status="done">看过</span>
+        <span class="pill" data-status="dropped">弃剧</span>
       </div>
     </div>
-    <div class="cal-week"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
-    <div class="cal-grid" id="calGrid"></div>
-  </div>
 
-  <div id="reportSection">
-  <div class="sec-title"><h2>年度报告 & 成就</h2><span class="line"></span></div>
-  <div class="report-grid">
-    <div class="report-card glass" id="reportCard">
-      <h3 id="reportYearTitle">今年回顾</h3>
-      <div class="report-stats" id="reportStats"></div>
-      <h3 style="margin-top:6px;">类别分布</h3>
-      <div class="cat-bars" id="catBars"></div>
-      <button class="btn ghost" id="downloadReport" style="margin-top:16px;width:100%;">下载分享图 (PNG)</button>
-    </div>
-    <div class="report-card glass">
-      <h3>成就徽章</h3>
-      <div class="badges" id="badges"></div>
-    </div>
-  </div>
-  </div><!-- /reportSection -->
+    <div class="stats" id="stats"></div>
 
-  <div class="data-bar glass">
-    <span class="hint">数据保存在本浏览器（localStorage），不上传服务器。可导出备份或导入恢复。</span>
-    <button class="btn ghost" id="exportBtn">导出备份</button>
-    <button class="btn ghost" id="importBtn">导入</button>
-    <button class="btn ghost" id="clearBtn">清空数据</button>
-    <input type="file" id="importFile" accept="application/json" class="hidden">
-  </div>
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <!-- ============ 日历 ============ -->
+  <section id="viewCal" class="hidden">
+    <div class="cal-card glass" id="calCard">
+      <div class="cal-head">
+        <div class="cal-title" id="calTitle"></div>
+        <div class="cal-nav">
+          <button class="mini" id="calPrev">‹ 上月</button>
+          <button class="mini" id="calToday">今天</button>
+          <button class="mini" id="calNext">下月 ›</button>
+        </div>
+      </div>
+      <div class="cal-week"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
+      <div class="cal-grid" id="calGrid"></div>
+    </div>
+  </section>
+
+  <!-- ============ 数据 ============ -->
+  <section id="viewData" class="hidden">
+    <div class="sec-title"><h2>数据备份</h2><span class="line"></span></div>
+    <div class="data-card glass">
+      <p class="hint">记录会自动保存在本机浏览器，关掉页面也不会丢。换设备、换浏览器或清理浏览器数据前，建议先「保存数据」留一份备份文件；导入该文件即可在新设备恢复。</p>
+      <div class="meta-line" id="saveMeta"></div>
+      <div class="data-acts">
+        <button class="btn" id="saveDataBtn">保存数据</button>
+        <button class="btn ghost" id="importBtn">导入数据</button>
+        <button class="btn ghost danger" id="clearBtn">清空数据</button>
+      </div>
+      <input type="file" id="importFile" accept="application/json" class="hidden">
+    </div>
+
+    <div class="sec-title"><h2>年度报告 &amp; 成就</h2><span class="line"></span></div>
+    <div class="report-grid">
+      <div class="report-card glass" id="reportCard">
+        <h3 id="reportYearTitle">今年回顾</h3>
+        <div class="report-stats" id="reportStats"></div>
+        <h3 style="margin-top:4px;">类别分布</h3>
+        <div class="cat-bars" id="catBars"></div>
+        <button class="btn ghost" id="downloadReport" style="margin-top:14px;width:100%;">下载分享图 (PNG)</button>
+      </div>
+      <div class="report-card glass">
+        <h3>成就徽章</h3>
+        <div class="badges" id="badges"></div>
+      </div>
+    </div>
+  </section>
 
 </div>
+
+<!-- 底部 tab -->
+<nav class="bottom-nav">
+  <div class="tab active" data-view="list">档案</div>
+  <div class="tab" data-view="cal">日历</div>
+  <div class="tab" data-view="data">数据</div>
+</nav>
+
+<div class="toast" id="toast"></div>
 
 <!-- Entry modal -->
 <div class="mask" id="mask">
@@ -360,7 +417,7 @@
       <textarea id="f_note" placeholder="台词、观点、灵感…"></textarea>
     </div>
     <div class="modal-acts">
-      <button class="btn ghost" id="cancelBtn" style="flex:0 0 110px;">取消</button>
+      <button class="btn ghost" id="cancelBtn" style="flex:0 0 100px;">取消</button>
       <button class="btn" id="saveBtn">保存</button>
     </div>
   </div>
@@ -389,7 +446,7 @@
       </div>
     </div>
     <div class="modal-acts">
-      <button class="btn ghost" id="catCancel" style="flex:0 0 110px;">取消</button>
+      <button class="btn ghost" id="catCancel" style="flex:0 0 100px;">取消</button>
       <button class="btn" id="catSave">添加</button>
     </div>
   </div>
@@ -400,6 +457,7 @@
   "use strict";
   const KEY="yingyinji_v1";
   const CATS_KEY="yingyinji_cats_v1";
+  const BACKUP_KEY="yingyinji_lastbackup_v1";
   const DEFAULT_CATS={
     tv:{name:"电视剧",unit:"集",color:"#5b9df9"},
     movie:{name:"电影",unit:"分钟",color:"#ff8fc4"},
@@ -470,8 +528,8 @@
   function watchedMinutes(it){
     const total=Number(it.total)||0;
     if(total<=0) return 0;
-    const pct=Math.min(1,Math.max(0,(Number(it.current)||0)/total));
-    return Math.round(totalMinutes(it)*pct);
+    const p=Math.min(1,Math.max(0,(Number(it.current)||0)/total));
+    return Math.round(totalMinutes(it)*p);
   }
   function pct(it){
     const total=Number(it.total)||0;
@@ -482,6 +540,14 @@
     n=Number(n)||0;let s="";
     for(let i=1;i<=5;i++){s+= i<=n?'<span>★</span>':'<span class="off">★</span>';}
     return s;
+  }
+
+  let toastTimer=null;
+  function toast(msg){
+    const t=document.getElementById("toast");
+    t.textContent=msg;t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer=setTimeout(()=>t.classList.remove("show"),1800);
   }
 
   function renderCatFilters(){
@@ -524,7 +590,7 @@
     if(filter.status!=="all") list=list.filter(i=>i.status===filter.status);
     if(filter.q){const q=filter.q.toLowerCase();list=list.filter(i=>(i.title+" "+(i.platform||"")).toLowerCase().includes(q));}
     list.sort((a,b)=>(b.updated||0)-(a.updated||0));
-    if(!list.length){grid.innerHTML='<div class="empty">还没有记录，点击右上角「＋ 添加」开始吧～</div>';return;}
+    if(!list.length){grid.innerHTML='<div class="empty">还没有记录，点右上角「＋ 添加」开始吧</div>';return;}
     grid.innerHTML=list.map(it=>{
       const c=CAT[it.cat]||CAT.tv;
       const st=STATUS[it.status]||STATUS.wish;
@@ -532,12 +598,12 @@
       const progTxt= it.total>0 ? (it.current+" / "+it.total+" "+it.unit+" · "+p+"%") : (it.unit==="分钟"?("已看 "+it.current+" 分钟"):("已看 "+it.current+" "+it.unit));
       return '<div class="card glass">'+
         (it.rating?'<div class="stars">'+stars(it.rating)+'</div>':'')+
-        '<div class="cat"><span class="dot" style="width:7px;height:7px;border-radius:50%;background:'+c.color+'"></span>'+c.name+'</div>'+
+        '<div class="meta"><span class="dot" style="width:6px;height:6px;border-radius:50%;background:'+c.color+'"></span><span class="cn">'+c.name+'</span>'+
+          (it.platform?'<span class="sep">·</span><span class="pf">'+esc(it.platform)+'</span>':'')+
+        '</div>'+
         '<div class="name">'+esc(it.title)+'</div>'+
-        (it.platform?'<span class="plat">'+esc(it.platform)+'</span>':'')+
-        '<div class="status-line"><span class="sd" style="background:'+st.color+'"></span>'+st.name+'</div>'+
+        '<div class="stat-line"><span class="sd" style="background:'+st.color+'"></span>'+st.name+'<span class="sep">·</span>'+progTxt+'</div>'+
         '<div class="bar"><i style="width:'+p+'%"></i></div>'+
-        '<div class="pct">'+progTxt+'</div>'+
         '<div class="acts">'+
           '<button class="mini primary" data-act="today" data-id="'+it.id+'">今日已看</button>'+
           '<button class="mini" data-act="edit" data-id="'+it.id+'">编辑</button>'+
@@ -562,6 +628,8 @@
     const r=parseInt(hex.substr(0,2),16),g=parseInt(hex.substr(2,2),16),b=parseInt(hex.substr(4,2),16);
     return "rgba("+r+","+g+","+b+","+a+")";
   }
+  function pad2(n){return String(n).padStart(2,"0");}
+  function fmtTime(ts){const d=new Date(ts);return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate())+" "+pad2(d.getHours())+":"+pad2(d.getMinutes());}
 
   function markToday(id){
     const it=items.find(i=>i.id===id);if(!it)return;
@@ -573,11 +641,14 @@
     else if(Number(it.total)>0) it.status="done";
     it.updated=Date.now();
     save();renderAll();
+    toast("已记录今天看过「"+it.title+"」");
   }
   function delItem(id){
-    if(!confirm("确定删除这条记录？")) return;
+    const it=items.find(i=>i.id===id);
+    if(!confirm("确定删除"+(it?("「"+it.title+"」"):"")+"这条记录？")) return;
     items=items.filter(i=>i.id!==id);
     save();renderAll();
+    toast("已删除");
   }
 
   function renderReport(){
@@ -623,6 +694,13 @@
       {c:"#ff9e7a",n:"日更战士",on:todayWatched}
     ];
     document.getElementById("badges").innerHTML=B.map(b=>'<div class="badge'+(b.on?" on":"")+'"><span class="bd" style="background:'+b.c+'"></span><span>'+b.n+'</span></div>').join("");
+  }
+
+  function renderSaveMeta(){
+    let last=0;
+    try{last=Number(localStorage.getItem(BACKUP_KEY))||0;}catch(e){}
+    const when= last? ("上次保存备份："+fmtTime(last)) : "还没有保存过备份文件";
+    document.getElementById("saveMeta").textContent="自动保存已开启 · 当前共 "+items.length+" 条记录 · "+when;
   }
 
   function fillCatSelect(){
@@ -693,10 +771,11 @@
       const it=items.find(i=>i.id===editingId);
       Object.assign(it,data);it.updated=Date.now();
     }else{
-      data.id=uid();data.added=Date.now();data.updated=Date.now();data.last="";
+      data.id=uid();data.added=Date.now();data.updated=Date.now();data.last="";data.marks={};
       items.push(data);
     }
     save();closeModal();renderAll();
+    toast(editingId?"已更新":"已添加「"+title+"」");
   }
 
   function openCatModal(){
@@ -712,30 +791,45 @@
     const key="c"+Date.now().toString(36);
     CAT[key]={name:nm,unit:document.getElementById("cat_unit").value,color:document.getElementById("cat_color").value};
     saveCats();closeCatModal();renderAll();
+    toast("已新增分类「"+nm+"」");
   }
 
-  function exportData(){
-    const blob=new Blob([JSON.stringify({items:items},null,2)],{type:"application/json"});
+  /* 保存数据：导出一份备份文件，并记录备份时间 */
+  function saveData(){
+    const payload={app:"eyes on",savedAt:new Date().toISOString(),items:items,cats:CAT};
+    const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
     const a=document.createElement("a");
     a.href=URL.createObjectURL(blob);
-    a.download="eyes on 备份_"+todayStr()+".json";
-    a.click();
-    URL.revokeObjectURL(a.href);
+    a.download="eyes on 数据备份_"+todayStr()+".json";
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+    try{localStorage.setItem(BACKUP_KEY,String(Date.now()));}catch(e){}
+    renderSaveMeta();
+    toast("已保存备份文件（"+items.length+" 条记录）");
   }
   function importData(file){
     const r=new FileReader();
     r.onload=()=>{
       try{
         const d=JSON.parse(r.result);
-        if(d.items&&Array.isArray(d.items)){items=d.items;save();renderAll();alert("导入成功，共 "+items.length+" 条");}
-        else alert("文件格式不正确");
+        if(d.items&&Array.isArray(d.items)){
+          items=d.items;
+          items.forEach(it=>{
+            if(!it.marks||typeof it.marks!=="object") it.marks={};
+            if(it.last && !Object.keys(it.marks).length) it.marks[it.last]=true;
+          });
+          if(d.cats&&typeof d.cats==="object"&&Object.keys(d.cats).length){CAT=d.cats;saveCats();}
+          save();renderAll();
+          toast("导入成功，共 "+items.length+" 条记录");
+        }else alert("文件格式不正确");
       }catch(e){alert("解析失败");}
     };
     r.readAsText(file);
   }
   function clearData(){
-    if(!confirm("将清空全部记录，建议先导出备份。确定清空？"))return;
+    if(!confirm("将清空全部记录，建议先「保存数据」留一份备份。确定清空？"))return;
     items=[];save();renderAll();
+    toast("已清空全部记录");
   }
 
   function downloadReport(){
@@ -819,15 +913,16 @@
     document.getElementById("calGrid").innerHTML=html;
     document.querySelectorAll("#calGrid .cal-row[data-id]").forEach(r=>{r.onclick=()=>openModal(r.dataset.id);});
   }
+
   function setView(v){
     view=v;
-    document.querySelectorAll(".pill[data-view]").forEach(p=>p.classList.toggle("active",p.dataset.view===v));
-    const list=v==="list";
-    document.getElementById("catFilters").style.display=list?"":"none";
-    document.getElementById("statusRow").style.display=list?"":"none";
-    document.getElementById("grid").style.display=list?"":"none";
-    document.getElementById("reportSection").style.display=list?"":"none";
-    document.getElementById("calCard").classList.toggle("hidden",list);
+    document.querySelectorAll(".bottom-nav .tab").forEach(p=>p.classList.toggle("active",p.dataset.view===v));
+    document.getElementById("viewList").classList.toggle("hidden",v!=="list");
+    document.getElementById("viewCal").classList.toggle("hidden",v!=="cal");
+    document.getElementById("viewData").classList.toggle("hidden",v!=="data");
+    if(v==="cal") renderCal();
+    if(v==="data") renderSaveMeta();
+    window.scrollTo({top:0,behavior:"smooth"});
   }
   function stepMonth(d){
     calM+=d;
@@ -835,13 +930,17 @@
     renderCal();
   }
   function gotoToday(){const n=new Date();calY=n.getFullYear();calM=n.getMonth();renderCal();}
-  function renderAll(){renderCatFilters();renderStats();renderList();renderReport();renderCal();}
+  function renderAll(){renderCatFilters();renderStats();renderList();renderReport();renderCal();renderSaveMeta();}
 
   document.getElementById("addBtn").onclick=()=>openModal(null);
   document.getElementById("cancelBtn").onclick=closeModal;
   document.getElementById("saveBtn").onclick=saveModal;
   document.getElementById("mask").onclick=e=>{if(e.target.id==="mask")closeModal();};
-  document.getElementById("search").oninput=e=>{filter.q=e.target.value;renderList();};
+  document.getElementById("search").oninput=e=>{
+    filter.q=e.target.value;
+    if(view!=="list") setView("list");
+    renderList();
+  };
   document.querySelectorAll(".pill[data-status]").forEach(p=>{
     p.onclick=()=>{
       document.querySelectorAll(".pill[data-status]").forEach(q=>q.classList.remove("active"));
@@ -852,16 +951,16 @@
   document.querySelectorAll("#ratePick span").forEach(s=>{
     s.onclick=()=>setRate(Number(s.dataset.v));
   });
-  document.getElementById("exportBtn").onclick=exportData;
+  document.getElementById("saveDataBtn").onclick=saveData;
   document.getElementById("importBtn").onclick=()=>document.getElementById("importFile").click();
-  document.getElementById("importFile").onchange=e=>{if(e.target.files[0])importData(e.target.files[0]);};
+  document.getElementById("importFile").onchange=e=>{if(e.target.files[0])importData(e.target.files[0]);e.target.value="";};
   document.getElementById("clearBtn").onclick=clearData;
   document.getElementById("downloadReport").onclick=downloadReport;
   document.getElementById("catCancel").onclick=closeCatModal;
   document.getElementById("catSave").onclick=saveCatModal;
   document.getElementById("catMask").onclick=e=>{if(e.target.id==="catMask")closeCatModal();};
 
-  document.querySelectorAll(".pill[data-view]").forEach(p=>{
+  document.querySelectorAll(".bottom-nav .tab").forEach(p=>{
     p.onclick=()=>setView(p.dataset.view);
   });
   document.getElementById("calPrev").onclick=()=>stepMonth(-1);
@@ -869,6 +968,7 @@
   document.getElementById("calToday").onclick=gotoToday;
 
   renderAll();
+  setView("list");
 })();
 </script>
 </body>
