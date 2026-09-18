@@ -228,7 +228,7 @@
   .cal-week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:7px;}
   .cal-week span{text-align:center;font-size:12px;color:var(--ink-soft);padding:4px 0;}
   .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
-  .cal-cell{background:var(--glass-strong);border-radius:12px;min-height:118px;padding:6px 7px 17px;box-shadow:var(--shadow-soft);display:flex;flex-direction:column;gap:3px;overflow:hidden;border:1.5px solid transparent;position:relative;}
+  .cal-cell{background:var(--glass-strong);border-radius:12px;min-height:118px;padding:6px 7px;box-shadow:var(--shadow-soft);display:flex;flex-direction:column;gap:3px;overflow:hidden;border:1.5px solid transparent;position:relative;}
   .cal-cell.dim{opacity:.38;}
   .cal-cell.today{border-color:var(--blue);}
   .cal-dn{font-size:12px;color:var(--ink-soft);align-self:flex-start;line-height:1.3;}
@@ -240,10 +240,10 @@
   .cal-row.ph:hover{filter:none;}
   .cal-tt{overflow:hidden;text-overflow:ellipsis;}
   /* +N 折叠药丸：点开当天完整清单（参考追文记） */
-  .cal-more{position:absolute;bottom:3px;left:50%;transform:translateX(-50%);font-size:10px;font-weight:700;
+  .cal-more{align-self:center;flex:0 0 auto;margin-top:2px;font-size:10px;font-weight:700;
     background:linear-gradient(135deg,var(--blue),var(--pink));color:#fff;border-radius:10px;padding:1px 7px;
-    cursor:pointer;line-height:1.6;box-shadow:0 2px 6px rgba(120,140,200,0.35);z-index:5;white-space:nowrap;}
-  .cal-more:active{transform:translateX(-50%) scale(1.08);}
+    cursor:pointer;line-height:1.6;box-shadow:0 2px 6px rgba(120,140,200,0.35);white-space:nowrap;}
+  .cal-more:active{transform:scale(1.08);}
   /* 当天清单 */
   .day-item{display:flex;align-items:center;gap:9px;padding:10px;border-radius:12px;background:var(--glass-strong);box-shadow:var(--shadow-soft);margin-bottom:8px;cursor:pointer;}
   .day-item:active{filter:brightness(0.95);}
@@ -260,7 +260,7 @@
     .stat{padding:9px 6px;}
     .stat .num{font-size:17px;}
     .report-grid{grid-template-columns:1fr;}
-    .cal-cell{min-height:96px;padding:6px 6px 16px;}
+    .cal-cell{min-height:96px;padding:6px;}
     .cal-dn{font-size:11px;}
     .cal-row{height:14px;font-size:10px;padding:0 4px;}
   }
@@ -269,7 +269,7 @@
     header.top{padding:14px 16px;}
     .stats{grid-template-columns:repeat(3,1fr);}
     .grid{grid-template-columns:1fr;}
-    .cal-cell{min-height:82px;padding:5px 4px 15px;}
+    .cal-cell{min-height:82px;padding:5px 4px;}
     .cal-dn{font-size:10px;}
     .cal-row{height:13px;font-size:9px;padding:0 3px;}
     .data-acts .btn{flex:1 1 100%;}
@@ -1020,40 +1020,72 @@
     const tk=todayStr();
     const first=new Date(y,m,1);
     const start=new Date(y,m,1-first.getDay());
-    const MAXROWS=window.innerWidth<=480?3:4;   /* 手机窄屏少放一行，给 +N 药丸留位 */
+    /* 每格最多同时显示几条（参考追文记 MAX_BOOKS_PER_DAY，窄屏少一条） */
+    const CAP=window.innerWidth<=480?3:4;
+    const laneByDay={}, hiddenByDay={}, weeks=[];
     let html="";
-    // 按周分配固定行（参考追文记 bookRowByWeek）：一周内同一部剧占同一行，连续多天横贯对齐
+    /* ① 复刻追文记的按周行排布：先把「同一部剧连续观看的天」合并成段(segment)，
+          再按起始日 ASC、同起始「更长优先」贪心排行 —— 行号可被不重叠的段复用(lane packing)，
+          所以一周能容纳远多于 CAP 部剧，且越早开始的剧排得越靠上。 */
     for(let w=0; w<6; w++){
-      const weekDays=[];
-      for(let d=0; d<7; d++){const dt=new Date(start);dt.setDate(start.getDate()+w*7+d);weekDays.push(dt);}
-      const seen={}, weekItems=[];
-      weekDays.forEach(dt=>{
-        const key=dt.getFullYear()+"-"+(dt.getMonth()+1)+"-"+dt.getDate();
-        items.forEach(it=>{if(it.marks&&it.marks[key]&&!seen[it.id]){seen[it.id]=true;weekItems.push(it);}});
-      });
-      weekItems.sort((a,b)=>(b.updated||0)-(a.updated||0));
-      const shown=weekItems.slice(0,MAXROWS);
+      const weekDays=[], keys=[];
       for(let d=0; d<7; d++){
-        const dt=weekDays[d];
-        const key=dt.getFullYear()+"-"+(dt.getMonth()+1)+"-"+dt.getDate();
-        const dim=dt.getMonth()!==m;const isT=key===tk;
+        const dt=new Date(start);dt.setDate(start.getDate()+w*7+d);
+        weekDays.push(dt);keys.push(dt.getFullYear()+"-"+(dt.getMonth()+1)+"-"+dt.getDate());
+      }
+      const segs=[];
+      items.forEach(it=>{
+        if(!it.marks) return;
+        let run=null;
+        for(let d=0; d<7; d++){
+          if(it.marks[keys[d]]){ if(run) run.e=d; else run={it:it,s:d,e:d}; }
+          else if(run){ segs.push(run); run=null; }
+        }
+        if(run) segs.push(run);
+      });
+      segs.sort((a,b)=> a.s-b.s || (b.e-b.s)-(a.e-a.s) || String(a.it.title||"").localeCompare(String(b.it.title||"")) );
+      const laneEnd=[];
+      segs.forEach(sg=>{
+        let lane=0;
+        while(lane<laneEnd.length && laneEnd[lane]>=sg.s) lane++;
+        if(lane<laneEnd.length) laneEnd[lane]=sg.e; else laneEnd.push(sg.e);
+        if(lane<CAP) for(let d=sg.s; d<=sg.e; d++) (laneByDay[keys[d]]=laneByDay[keys[d]]||{})[lane]=sg.it;
+      });
+      weeks.push({weekDays:weekDays,keys:keys});
+    }
+    /* ② 每天兜底：当天有记录的剧一定排进空行，最多 CAP 条，其余折叠成 +N
+          —— 从根本上杜绝「当天有记录却前几行全空」 */
+    weeks.forEach(wk=>{
+      wk.keys.forEach(key=>{
+        const here=items.filter(i=>i.marks&&i.marks[key]);
+        const lanes=laneByDay[key]=laneByDay[key]||{};
+        const placed=Object.keys(lanes).map(L=>lanes[L]);
+        const free=[];for(let L=0;L<CAP;L++) if(!lanes[L]) free.push(L);
+        here.forEach(it=>{ if(placed.indexOf(it)>=0) return; if(!free.length) return; lanes[free.shift()]=it; });
+        const hid=here.length-Object.keys(lanes).length;
+        if(hid>0) hiddenByDay[key]=hid;
+      });
+    });
+    weeks.forEach(wk=>{
+      for(let d=0; d<7; d++){
+        const dt=wk.weekDays[d], key=wk.keys[d];
+        const dim=dt.getMonth()!==m, isT=key===tk;
+        const lanes=laneByDay[key]||{};
         let rows="";
-        shown.forEach(it=>{
-          const c=colorOf(it);
-          if(it.marks[key]){
+        for(let L=0;L<CAP;L++){
+          const it=lanes[L];
+          if(it){
+            const c=colorOf(it);
             rows+='<div class="cal-row" data-id="'+it.id+'" style="background:'+hexA(c,0.75)+';border-color:'+hexA(c,0.92)+'"><span class="cal-tt">'+esc(it.title)+'</span></div>';
           }else{
             rows+='<div class="cal-row ph"></div>';
           }
-        });
-        // 当天有记录、但被本周行数上限挤掉的作品数 → +N 药丸
-        const dayAll=items.filter(i=>i.marks&&i.marks[key]).length;
-        const dayShown=shown.filter(i=>i.marks[key]).length;
-        const hidden=dayAll-dayShown;
-        const more=hidden>0?'<span class="cal-more" data-day="'+key+'">+'+hidden+'</span>':'';
+        }
+        const hid=hiddenByDay[key]||0;
+        const more=hid>0?'<span class="cal-more" data-day="'+key+'">+'+hid+'</span>':'';
         html+='<div class="cal-cell'+(dim?" dim":"")+(isT?" today":"")+'"><div class="cal-dn">'+dt.getDate()+'</div><div class="cal-rows">'+rows+'</div>'+more+'</div>';
       }
-    }
+    });
     document.getElementById("calGrid").innerHTML=html;
     document.querySelectorAll("#calGrid .cal-row[data-id]").forEach(r=>{r.onclick=()=>openModal(r.dataset.id);});
     document.querySelectorAll("#calGrid .cal-more[data-day]").forEach(m=>{m.onclick=()=>openDayView(m.dataset.day);});
