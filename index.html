@@ -202,6 +202,10 @@
     height:46px!important;line-height:1.2;padding:11px 13px;text-align:left;
   }
   .field-hint{font-size:11.5px;color:var(--ink-soft);margin:-7px 0 7px;line-height:1.5;}
+  /* 「这段区间每天都看」开关：默认关，只记开始/结束两天（参考追文记规则） */
+  .cont-row{display:flex;align-items:center;gap:9px;margin:-3px 0 9px;padding:9px 13px;border-radius:12px;
+    background:var(--glass-strong);box-shadow:var(--shadow-soft);font-size:13px;color:var(--ink);cursor:pointer;line-height:1.35;}
+  .cont-row input{flex:0 0 18px;width:18px;height:18px;margin:0;accent-color:var(--pink);}
   .two{display:grid;grid-template-columns:1fr 1fr;gap:11px;min-width:0;}
   .two>*{min-width:0;}
   .rate-pick{display:flex;gap:6px;font-size:25px;cursor:pointer;}
@@ -250,6 +254,9 @@
   .day-sw{width:10px;height:10px;border-radius:3px;flex:0 0 auto;}
   .day-tt{font-size:14px;font-weight:600;flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .day-sub{font-size:11.5px;color:var(--ink-soft);flex:0 0 auto;}
+  .day-del{flex:0 0 auto;width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,0.72);color:var(--ink-soft);
+    font-size:15px;line-height:22px;text-align:center;}
+  .day-del:active{background:#fff;color:#e06a8b;}
   .day-empty{font-size:13px;color:var(--ink-soft);text-align:center;padding:18px 0;}
 
   @media(max-width:720px){
@@ -415,7 +422,8 @@
         <input id="f_end" type="date">
       </div>
     </div>
-    <p class="field-hint">填写开始 / 结束日期后，日历会以色条展示这段观看区间；结束留空表示仍在看。随手记当天，用卡片上的「今日已看」即可。</p>
+    <label class="cont-row"><input id="f_cont" type="checkbox"><span>这段区间每天都看</span></label>
+    <p class="field-hint">默认只记「开始 / 结束」这两天（中间断档的日子不会自动填上）；确实天天在追才勾选上面的开关。结束留空表示仍在看。平时随手记当天，用卡片上的「今日已看」即可。</p>
     <div class="two">
       <div class="field">
         <label>进度（当前）</label>
@@ -620,12 +628,27 @@
     return m;
   }
   function fmtMd(k){const d=keyToDate(k); if(!d)return ""; return pad2(d.getMonth()+1)+"/"+pad2(d.getDate());}
+  function marksOf(it){return Object.keys((it&&it.marks)||{}).filter(k=>it.marks[k]);}
+  /* 现有记录是否为「连续无断档」→ 决定表单里「这段区间每天都看」的初始勾选态 */
+  function isContiguous(it){
+    const ks=marksOf(it);
+    if(!it||!it.start) return ks.length<=1;
+    const s=keyToDate(it.start), e=keyToDate(it.end||it.start);
+    if(!s||!e) return false;
+    const span=Math.round((e-s)/86400000)+1;
+    return ks.length>=span;
+  }
   function dateRangeText(it){
     if(!it.start) return "";
     const s=fmtMd(it.start);
     let tail=(it.end && it.end!==it.start)?(" – "+fmtMd(it.end)):"";
     if(!it.end && it.status==="watching") tail=" 起";
-    return '<span class="sep">·</span>'+s+tail;
+    /* 中间有断档时标出实际观看天数，避免「09/15 – 09/20」被误读成天天都在看 */
+    const ks=marksOf(it);
+    const sd=keyToDate(it.start), ed=keyToDate(it.end||it.start);
+    const span=(sd&&ed)?(Math.round((ed-sd)/86400000)+1):0;
+    const extra=(span>1 && ks.length && ks.length<span)?('<span class="sep">·</span>记'+ks.length+'天'):"";
+    return '<span class="sep">·</span>'+s+tail+extra;
   }
   /* 旧数据兼容 + 统一为「开始/结束 + marks」模型 */
   function normalizeItems(arr){
@@ -748,12 +771,16 @@
   function pad2(n){return String(n).padStart(2,"0");}
   function fmtTime(ts){const d=new Date(ts);return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate())+" "+pad2(d.getHours())+":"+pad2(d.getMinutes());}
 
+  /* 今日已看：参考追文记 quickMarkToday —— 只记「当天」这一天，
+     不把中间没看的日子一起填满（旧实现会 end=今天 后重建整段，导致 16–19 号凭空出现记录） */
   function markToday(id){
     const it=items.find(i=>i.id===id);if(!it)return;
     const t=todayStr();
-    if(!it.start) it.start=t;
-    it.end=(it.end && keyToDate(t)<=keyToDate(it.end))?it.end:t;
-    it.marks=buildMarks(it.start,it.end);
+    if(!it.marks||typeof it.marks!=="object") it.marks={};
+    it.marks[t]=true;
+    const ks=marksOf(it);
+    if(ks.length){it.start=minKey(ks);it.end=maxKey(ks);}
+    else it.start=it.start||t;
     if(Number(it.total)>0 && Number(it.current)<Number(it.total)) it.current=Number(it.current)+1;
     else if(Number(it.total)>0) it.status="done";
     it.last=t;it.updated=Date.now();
@@ -860,6 +887,8 @@
       setRate(it.rating||0);
       document.getElementById("f_start").value=inputFromKey(it.start||"");
       document.getElementById("f_end").value=inputFromKey(it.end||"");
+      // 已有断档 → 默认不勾「这段区间每天都看」，保存时不会把空档填满
+      document.getElementById("f_cont").checked=isContiguous(it);
     }else{
       document.getElementById("f_title").value="";
       document.getElementById("f_cat").value="tv";
@@ -873,6 +902,7 @@
       setRate(0);
       document.getElementById("f_start").value=inputFromKey(todayStr());
       document.getElementById("f_end").value="";
+      document.getElementById("f_cont").checked=true;
     }
     syncUnit();
     lockScroll();
@@ -896,14 +926,33 @@
       review:document.getElementById("f_review").value.trim(),
       note:document.getElementById("f_note").value.trim()
     };
-    /* 开始 / 结束观看时间 → marks（决定日历色条区间） */
+    /* 开始 / 结束观看时间 → marks（决定日历色条）
+       勾选「这段区间每天都看」才整段填充；默认只记首尾两天（参考追文记：断档的日子不补） */
     let sK=keyFromInput(document.getElementById("f_start").value);
     let eK=keyFromInput(document.getElementById("f_end").value);
     if(!sK && eK){sK=eK;eK="";}
     if(sK && eK && keyToDate(eK)<keyToDate(sK)) eK=sK;
     data.start=sK; data.end=eK;
-    data.marks=buildMarks(sK,eK);
-    data.last=eK||sK||"";
+    if(document.getElementById("f_cont").checked){
+      data.marks=buildMarks(sK,eK);
+    }else{
+      const keep={};
+      const old=editingId?items.find(i=>i.id===editingId):null;
+      if(old&&old.marks){
+        const sd=sK?keyToDate(sK):null, ed=eK?keyToDate(eK):null;
+        marksOf(old).forEach(k=>{
+          const d=keyToDate(k); if(!d) return;
+          if(!sd){keep[k]=true;return;}          // 没填开始日 → 原样保留
+          if(ed){if(d>=sd&&d<=ed) keep[k]=true;}  // 只保留落在新区间内的历史观看日
+          else if(d>=sd) keep[k]=true;
+        });
+      }
+      if(sK) keep[sK]=true;
+      if(eK) keep[eK]=true;
+      data.marks=keep;
+    }
+    const _mk=marksOf({marks:data.marks});
+    data.last=_mk.length?maxKey(_mk):(eK||sK||"");
     const hadId=editingId;
     if(editingId){
       const it=items.find(i=>i.id===editingId);
@@ -1022,7 +1071,7 @@
     const start=new Date(y,m,1-first.getDay());
     /* 每格最多同时显示几条（参考追文记 MAX_BOOKS_PER_DAY，窄屏少一条） */
     const CAP=window.innerWidth<=480?3:4;
-    const laneByDay={}, hiddenByDay={}, weeks=[];
+    const laneByDay={}, hiddenByDay={}, dayCount={}, weeks=[];
     let html="";
     /* ① 复刻追文记的按周行排布：先把「同一部剧连续观看的天」合并成段(segment)，
           再按起始日 ASC、同起始「更长优先」贪心排行 —— 行号可被不重叠的段复用(lane packing)，
@@ -1063,6 +1112,7 @@
         const free=[];for(let L=0;L<CAP;L++) if(!lanes[L]) free.push(L);
         here.forEach(it=>{ if(placed.indexOf(it)>=0) return; if(!free.length) return; lanes[free.shift()]=it; });
         const hid=here.length-Object.keys(lanes).length;
+        dayCount[key]=here.length;
         if(hid>0) hiddenByDay[key]=hid;
       });
     });
@@ -1083,15 +1133,24 @@
         }
         const hid=hiddenByDay[key]||0;
         const more=hid>0?'<span class="cal-more" data-day="'+key+'">+'+hid+'</span>':'';
-        html+='<div class="cal-cell'+(dim?" dim":"")+(isT?" today":"")+'"><div class="cal-dn">'+dt.getDate()+'</div><div class="cal-rows">'+rows+'</div>'+more+'</div>';
+        html+='<div class="cal-cell'+(dim?" dim":"")+(isT?" today":"")+'" data-day="'+key+'"><div class="cal-dn">'+dt.getDate()+'</div><div class="cal-rows">'+rows+'</div>'+more+'</div>';
       }
     });
     document.getElementById("calGrid").innerHTML=html;
     document.querySelectorAll("#calGrid .cal-row[data-id]").forEach(r=>{r.onclick=()=>openModal(r.dataset.id);});
     document.querySelectorAll("#calGrid .cal-more[data-day]").forEach(m=>{m.onclick=()=>openDayView(m.dataset.day);});
+    /* 点日期数字 → 当天清单（可逐日移除误填的记录） */
+    document.querySelectorAll("#calGrid .cal-cell[data-day]").forEach(c=>{
+      const k=c.dataset.day;
+      const dn=c.querySelector(".cal-dn");
+      if(dn&&dayCount[k]){
+        dn.style.cursor="pointer";
+        dn.onclick=ev=>{ev.stopPropagation();openDayView(k);};
+      }
+    });
   }
 
-  /* 点 +N 展开：当天完整清单（含被折叠的），点条目可直接编辑 */
+  /* 点 +N 展开：当天完整清单（含被折叠的），点条目可直接编辑、右侧 × 可移除这天 */
   function openDayView(key){
     const list=items.filter(i=>i.marks&&i.marks[key]).sort((a,b)=>(b.updated||0)-(a.updated||0));
     const p=key.split("-");
@@ -1099,13 +1158,28 @@
     document.getElementById("dayList").innerHTML=list.length?list.map(it=>{
       const pc=pct(it);
       const sub=Number(it.total)>0?(it.current+" / "+it.total+" "+it.unit+" · "+pc+"%"):(it.current+" "+it.unit);
-      return '<div class="day-item" data-id="'+it.id+'"><span class="day-sw" style="background:'+colorOf(it)+'"></span><span class="day-tt">'+esc(it.title)+'</span><span class="day-sub">'+esc(sub)+'</span></div>';
+      return '<div class="day-item" data-id="'+it.id+'"><span class="day-sw" style="background:'+colorOf(it)+'"></span><span class="day-tt">'+esc(it.title)+'</span><span class="day-sub">'+esc(sub)+'</span><span class="day-del" data-id="'+it.id+'">×</span></div>';
     }).join(""):'<div class="day-empty">这天没有记录</div>';
     document.querySelectorAll("#dayList .day-item").forEach(el=>{el.onclick=()=>{closeDayView();openModal(el.dataset.id);};});
+    document.querySelectorAll("#dayList .day-del").forEach(el=>{
+      el.onclick=ev=>{ev.stopPropagation();unmarkDay(el.dataset.id,key);openDayView(key);};
+    });
     lockScroll();
     document.getElementById("dayMask").classList.add("show");
   }
   function closeDayView(){unlockScroll();document.getElementById("dayMask").classList.remove("show");}
+  /* 逐日移除：清掉某部作品在某一天的观看记录（用于修正误填的日子），首尾日期随之重算 */
+  function unmarkDay(id,key){
+    const it=items.find(i=>i.id===id);if(!it||!it.marks||!it.marks[key])return;
+    delete it.marks[key];
+    const ks=marksOf(it);
+    if(ks.length){it.start=minKey(ks);it.end=maxKey(ks);it.last=maxKey(ks);}
+    else{it.start="";it.end="";it.last="";}
+    it.updated=Date.now();
+    save();renderAll();
+    const p=key.split("-");
+    toast("已移除 "+(Number(p[1])||0)+"月"+(Number(p[2])||0)+"日 的记录「"+it.title+"」");
+  }
 
   function setView(v){
     view=v;
