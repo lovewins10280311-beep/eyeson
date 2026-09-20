@@ -208,6 +208,10 @@
   .cont-row input{flex:0 0 18px;width:18px;height:18px;margin:0;accent-color:var(--pink);}
   .two{display:grid;grid-template-columns:1fr 1fr;gap:11px;min-width:0;}
   .two>*{min-width:0;}
+  /* 补记某天观看：日期框 + 按钮同行，不挤占其它字段 */
+  .diary-row{display:flex;gap:8px;align-items:center;min-width:0;}
+  .diary-row input[type=date]{flex:1 1 auto;min-width:0;}
+  .diary-row .mini{flex:0 0 auto;height:46px;padding:0 16px;white-space:nowrap;}
   .rate-pick{display:flex;gap:6px;font-size:25px;cursor:pointer;}
   .rate-pick span{color:rgba(120,140,200,0.3);transition:transform .1s;}
   .rate-pick span.on{color:#ffb84d;}
@@ -424,6 +428,14 @@
     </div>
     <label class="cont-row"><input id="f_cont" type="checkbox"><span>这段区间每天都看</span></label>
     <p class="field-hint">默认只记「开始 / 结束」这两天（中间断档的日子不会自动填上）；确实天天在追才勾选上面的开关。结束留空表示仍在看。平时随手记当天，用卡片上的「今日已看」即可。</p>
+    <div class="field hidden" id="addDayWrap">
+      <label>补记某天观看</label>
+      <div class="diary-row">
+        <input id="f_add" type="date">
+        <button type="button" class="mini primary" id="addDayBtn">记录这天</button>
+      </div>
+      <p class="field-hint">忘记记的某一天，单独补上即可，不影响其它已记的日子。仅在编辑已有记录时出现。</p>
+    </div>
     <div class="two">
       <div class="field">
         <label>进度（当前）</label>
@@ -795,6 +807,26 @@
     toast("已删除");
   }
 
+  /* 补记某天：单独给已有作品补上忘记记录的那一天（参考追文记 logBookDay(id,0,day)，
+     可记任意一天、不牵连其它日期）。即时生效，与「今日已看」同样直接落盘。 */
+  function addDay(){
+    if(!editingId) return;
+    const it=items.find(i=>i.id===editingId);if(!it) return;
+    const k=keyFromInput(document.getElementById("f_add").value);
+    if(!k){toast("请先选择要补记的日期");return;}
+    if(!it.marks||typeof it.marks!=="object") it.marks={};
+    if(it.marks[k]){toast(fmtMd(k)+" 已经记过了");return;}
+    it.marks[k]=true;
+    const ks=marksOf(it);
+    it.start=minKey(ks);it.end=maxKey(ks);
+    it.last=maxKey(ks);it.updated=Date.now();
+    if(Number(it.total)>0 && Number(it.current)<Number(it.total)) it.current=Number(it.current)+1;
+    save();renderAll();
+    document.getElementById("f_start").value=inputFromKey(it.start||"");
+    document.getElementById("f_end").value=inputFromKey(it.end||"");
+    toast("已补记 "+fmtMd(k)+" 看过「"+it.title+"」");
+  }
+
   function renderReport(){
     const y=year();
     document.getElementById("reportYearTitle").textContent=y+" 年回顾";
@@ -904,6 +936,9 @@
       document.getElementById("f_end").value="";
       document.getElementById("f_cont").checked=true;
     }
+    /* 补记仅对已有记录开放 */
+    document.getElementById("addDayWrap").classList.toggle("hidden",!id);
+    document.getElementById("f_add").value="";
     syncUnit();
     lockScroll();
     document.getElementById("mask").classList.add("show");
@@ -1202,6 +1237,7 @@
   document.getElementById("addBtn").onclick=()=>openModal(null);
   document.getElementById("cancelBtn").onclick=closeModal;
   document.getElementById("saveBtn").onclick=saveModal;
+  document.getElementById("addDayBtn").onclick=addDay;
   document.getElementById("dayClose").onclick=closeDayView;
   document.getElementById("mask").onclick=e=>{if(e.target.id==="mask")closeModal();};
   document.getElementById("search").oninput=e=>{
