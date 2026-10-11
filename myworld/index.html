@@ -174,6 +174,12 @@
     .stats{grid-template-columns:repeat(2,1fr);}
     .grid{gap:10px;}
     .cal-week{min-height:78px;}
+    .hero{display:flex;align-items:stretch;}
+    .hero .cover{width:38%;flex:0 0 auto;aspect-ratio:1/1;border-radius:0;object-position:center;}
+    .hero .info{flex:1;padding:14px 16px;display:flex;flex-direction:column;justify-content:center;}
+    .hero h2{font-size:16px;}
+    .hero .sub{font-size:11px;margin-top:4px;}
+    .hero .tag{font-size:10px;padding:2px 8px;margin-bottom:6px;}
   }
 </style>
 </head>
@@ -472,7 +478,7 @@ function renderHero(){
     hero.className="hero";hero.innerHTML='<div class="info"><div class="tag" style="background:var(--ink)">开始</div><h2>还没有作品</h2><div class="sub">点右上角「添加作品」，上传第一张造景照片</div></div>';
     hero.onclick=function(){openWorkEditor(null,null);};return;
   }
-  var w=list[0];var col=themeColor(w.theme);
+  var w=list.find(function(x){return x.cover;})||list[0];var col=themeColor(w.theme);
   var cover=w.cover?('<img class="cover" src="'+w.cover+'" alt="">'):('<img class="cover" src="'+sceneSVG(w.theme)+'" alt="">');
   var dt=w.start+(w.end&&w.end!==w.start?" – "+w.end:"");
   hero.innerHTML=cover+'<div class="info"><span class="tag" style="background:'+col+'">最新 · '+esc(w.theme)+'</span><h2>'+esc(w.title)+'</h2><div class="sub">'+dt+' · '+(w.note?esc(w.note.slice(0,30)):(daysOf(w)>1?"共 "+daysOf(w)+" 天":"单日作品"))+'</div></div>';
@@ -566,8 +572,10 @@ function renderCalendar(){
     wk.segments.forEach(function(seg){
       var col=themeColorBar(seg.work.theme);
       var left=(seg.startCol/7)*100;var width=((seg.endCol-seg.startCol+1)/7)*100;
-      var showText=(seg.endCol-seg.startCol)>=1;
-      html+='<div class="cal-bar" data-id="'+seg.work.id+'" style="top:'+(seg.row*15)+'px;left:calc('+left+'% + 3px);width:calc('+width+'% - 6px);background:'+col+';">'+(showText?esc(seg.work.title):"")+'</div>';
+      var span=seg.endCol-seg.startCol+1;
+      var pad=span===1?'3px 4px':'0 7px';
+      var label=esc(seg.work.title.slice(0,3));
+      html+='<div class="cal-bar" data-id="'+seg.work.id+'" style="top:'+(seg.row*15)+'px;left:calc('+left+'% + 3px);width:calc('+width+'% - 6px);background:'+col+';padding:'+pad+';" title="'+esc(seg.work.title)+'">'+label+'</div>';
     });
     html+='</div></div>';
   });
