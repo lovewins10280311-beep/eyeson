@@ -81,6 +81,21 @@
   .stars .off{color:rgba(0,0,0,0.16);}
   .status-tag{font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--surface);color:var(--muted);}
 
+  /* ---------- 小说 / 影视：eyes on 排列方式（紧凑信息卡，无封面） ---------- */
+  .eyelist{display:flex;flex-direction:column;gap:11px;}
+  .eyecard{background:var(--card);border-radius:var(--radius-sm);padding:13px 14px 14px;box-shadow:var(--shadow);position:relative;cursor:pointer;transition:transform .15s ease,box-shadow .15s ease;}
+  .eyecard:hover{transform:translateY(-2px);box-shadow:var(--shadow-hover);}
+  .eyecard .ec-stars{position:absolute;top:13px;right:14px;font-size:12px;letter-spacing:.5px;color:#f0b429;line-height:1;}
+  .eyecard .ec-stars .off{color:rgba(0,0,0,0.16);}
+  .eyecard .ec-meta{font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:5px;padding-right:66px;white-space:nowrap;overflow:hidden;}
+  .eyecard .ec-meta .ec-sep{opacity:.5;flex:0 0 auto;}
+  .eyecard .ec-name{font-size:15.5px;font-weight:700;line-height:1.3;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .eyecard .ec-stat{font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:6px;margin-top:8px;}
+  .eyecard .ec-dot{width:7px;height:7px;border-radius:50%;flex:0 0 auto;}
+  .eyecard .ec-sep{opacity:.5;}
+  .eyecard .ec-bar{height:6px;border-radius:999px;background:var(--surface);overflow:hidden;margin-top:9px;}
+  .eyecard .ec-bar>i{display:block;height:100%;border-radius:999px;}
+
   /* ---------- 月历 Apple 风格（无网格线） ---------- */
   .cal-card{padding:20px 16px 18px;}
   .cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
@@ -204,6 +219,7 @@
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8e8e93" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
       <input type="text" id="windowSearch" placeholder="搜索小说 / 影视 / 造景…" maxlength="40">
     </div>
+    <div class="eyelist" id="windowList"></div>
     <div class="grid" id="windowGrid"></div>
   </section>
 
@@ -518,30 +534,66 @@ function renderTypeFilters(){
     d.onclick=function(){S.typeFilter=o.t;renderTypeFilters();renderWindowGrid();};box.appendChild(d);
   });
 }
-function windowCardHTML(it){
-  var col=it.type==="diorama"?themeColor(it.theme):typeMeta(it.type).c;
-  var ph=it.cover?('<img class="ph" src="'+it.cover+'" alt="">'):('<img class="ph" src="'+placeholder(it)+'" alt="">'+(it.type==="diorama"?'<div class="noimg">未上传照片</div>':''));
-  var tag='<span class="type-tag" style="background:'+col+'">'+typeMeta(it.type).n+'</span>';
-  var sub='';
-  if(it.type==="book"){
-    sub=(it.author||"未知");
-    if(it.total)sub+=' · '+it.total+'章';
-    sub+=' <span class="status-tag">'+BOOK_STATUS[it.status||"want"]+'</span>';
-    if(it.rating)sub+=' <span class="stars">'+starHTML(it.rating)+'</span>';
-  } else if(it.type==="film"){
-    sub='<span class="status-tag">'+FILM_STATUS[it.status||"wish"]+'</span> <span class="stars">'+starHTML(it.rating)+'</span>';
-    if(it.cat)sub+=' <span class="status-tag">'+esc(FILM_CAT[it.cat]||it.cat)+'</span>';
-    if(it.platform)sub+=' <span class="status-tag">'+esc(it.platform)+'</span>';
-  } else sub=esc(it.theme||"其他");
-  return '<div class="work" data-id="'+it.id+'">'+ph+'<div class="info"><div class="nm">'+esc(it.title)+'</div><div class="meta">'+tag+'<span>'+sub+'</span><span>'+it.start.slice(5)+'</span></div></div></div>';
+/* 状态色点（eyes on 风格） */
+function statusColor(s){
+  return ({want:"#b0b0b5",wish:"#b0b0b5",reading:"#4b9edd",watching:"#4b9edd",done:"#34a853",paused:"#e0a23b",dropped:"#e2604b"})[s]||"#b0b0b5";
+}
+/* 起止日期文案（MM-DD …） */
+function dateRangeText(it){
+  if(!it.start)return "";
+  var s=it.start.slice(5);
+  var tail=(it.end&&it.end!==it.start)?(" – "+it.end.slice(5)):"";
+  if(!it.end&&(it.status==="watching"||it.status==="reading"))tail=" 起";
+  return s+tail;
+}
+/* 进度计算（eyes on 风格进度条） */
+function eyesProgress(it){
+  if(it.type==="film"){
+    var total=Number(it.total)||0,cur=Number(it.current)||0;
+    if(total>0){var p=Math.min(100,Math.round(cur/total*100));return {pct:p,text:cur+"/"+total+" · "+p+"%",showBar:true};}
+    if(it.status==="done")return {pct:100,text:"已看完",showBar:true};
+    return {pct:0,text:"",showBar:false};
+  }
+  if(it.status==="done")return {pct:100,text:(it.total?("共 "+it.total+" 章"):"已读完"),showBar:true};
+  if(it.total)return {pct:0,text:"共 "+it.total+" 章",showBar:false};
+  return {pct:0,text:"",showBar:false};
+}
+/* 造景贴纸：保留原图文卡片（封面 + 标题 + 主题） */
+function windowDioramaCardHTML(it){
+  var col=themeColor(it.theme);
+  var ph=it.cover?('<img class="ph" src="'+it.cover+'" alt="">'):('<img class="ph" src="'+placeholder(it)+'" alt=""><div class="noimg">未上传照片</div>');
+  var tag='<span class="type-tag" style="background:'+col+'">造景</span>';
+  return '<div class="work" data-id="'+it.id+'">'+ph+'<div class="info"><div class="nm">'+esc(it.title)+'</div><div class="meta">'+tag+'<span>'+esc(it.theme||"其他")+'</span><span>'+it.start.slice(5)+'</span></div></div></div>';
+}
+/* 小说 / 影视：eyes on 排列方式（状态色点 + 进度条 + 平台 + 星 + 日期，无封面） */
+function windowEyesCardHTML(it){
+  var sc=statusColor(it.status);
+  var stars=it.rating?'<div class="ec-stars">'+starHTML(it.rating)+'</div>':'';
+  var meta="";
+  if(it.platform)meta+='<span>'+esc(it.platform)+'</span>';
+  var dr=dateRangeText(it);if(dr)meta+='<span class="ec-sep">·</span><span>'+dr+'</span>';
+  var stName=it.type==="book"?(BOOK_STATUS[it.status||"want"]||"想读"):(FILM_STATUS[it.status||"wish"]||"想看");
+  var prog=eyesProgress(it);
+  var stat='<span class="ec-dot" style="background:'+sc+'"></span>'+stName;
+  if(prog.text)stat+='<span class="ec-sep">·</span>'+prog.text;
+  var bar=prog.showBar?'<div class="ec-bar"><i style="width:'+prog.pct+'%;background:'+sc+'"></i></div>':"";
+  return '<div class="eyecard" data-id="'+it.id+'">'+stars+(meta?'<div class="ec-meta">'+meta+'</div>':'')+'<div class="ec-name">'+esc(it.title)+'</div><div class="ec-stat">'+stat+'</div>'+bar+'</div>';
 }
 function renderWindowGrid(){
   var list=filteredWindow();
   $("windowCount").textContent="共 "+list.length+" 项";
-  var grid=$("windowGrid");
-  if(!list.length){grid.innerHTML='<div class="empty">还没有内容<br>点右上角添加小说 / 影视 / 造景</div>';return;}
-  grid.innerHTML=list.map(windowCardHTML).join("");
-  grid.querySelectorAll(".work").forEach(function(el){el.onclick=function(){openItemDetail(el.getAttribute("data-id"));};});
+  var listEl=$("windowList"),gridEl=$("windowGrid");
+  if(!list.length){
+    listEl.innerHTML='<div class="empty">还没有内容<br>点右上角添加小说 / 影视 / 造景</div>';
+    gridEl.innerHTML="";
+    return;
+  }
+  var bf=list.filter(function(it){return it.type!=="diorama";});
+  var di=list.filter(function(it){return it.type==="diorama";});
+  listEl.innerHTML=bf.length?bf.map(windowEyesCardHTML).join(""):"";
+  gridEl.innerHTML=di.length?di.map(windowDioramaCardHTML).join(""):"";
+  listEl.querySelectorAll(".eyecard").forEach(function(el){el.onclick=function(){openItemDetail(el.getAttribute("data-id"));};});
+  gridEl.querySelectorAll(".work").forEach(function(el){el.onclick=function(){openItemDetail(el.getAttribute("data-id"));};});
 }
 function refreshWindow(){renderTypeFilters();renderWindowGrid();}
 
