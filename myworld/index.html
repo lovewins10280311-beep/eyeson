@@ -307,9 +307,13 @@
     <!-- book -->
     <div class="field f-book"><label>作者</label><input type="text" id="iAuthor" placeholder="作者" maxlength="30"></div>
     <div class="field f-book"><label>总章节（可空）</label><input type="number" id="iTotal" placeholder="0" min="0"></div>
+    <div class="field f-book"><label>状态</label><select id="iBStatus"><option value="want">想读</option><option value="reading">在读</option><option value="done">读完</option><option value="paused">搁置</option></select></div>
     <!-- film -->
     <div class="field f-film"><label>状态</label><select id="iStatus"><option value="wish">想看</option><option value="watching">在看</option><option value="done">看完</option><option value="dropped">弃</option></select></div>
-    <div class="field f-film"><label>评分</label><div class="rate" id="iRate"><span class="st" data-v="1">★</span><span class="st" data-v="2">★</span><span class="st" data-v="3">★</span><span class="st" data-v="4">★</span><span class="st" data-v="5">★</span></div></div>
+    <div class="field f-film"><label>类型</label><select id="iCat"><option value="movie">电影</option><option value="tv">剧集</option><option value="variety">综艺</option><option value="anime">动画</option><option value="other">其他</option></select></div>
+    <div class="field f-film"><label>平台</label><input type="text" id="iPlatform" placeholder="如 腾讯视频" maxlength="20"></div>
+    <!-- 评分：书 / 影 共用 -->
+    <div class="field f-book f-film"><label>评分</label><div class="rate" id="iRate"><span class="st" data-v="1">★</span><span class="st" data-v="2">★</span><span class="st" data-v="3">★</span><span class="st" data-v="4">★</span><span class="st" data-v="5">★</span></div></div>
     <!-- diorama -->
     <div class="field f-diorama"><label>主题</label><select id="iTheme"></select></div>
     <!-- 通用 -->
@@ -402,6 +406,8 @@ var THEMES=[
 ];
 var PLATS=["淘宝","拼多多","京东","闲鱼","微店","线下实体","其他"];
 var FILM_STATUS={wish:"想看",watching:"在看",done:"看完",dropped:"弃"};
+var BOOK_STATUS={want:"想读",reading:"在读",done:"读完",paused:"搁置"};
+var FILM_CAT={movie:"电影",tv:"剧集",variety:"综艺",anime:"动画",other:"其他"};
 function typeMeta(t){for(var i=0;i<TYPES.length;i++){if(TYPES[i].t===t)return TYPES[i];}return TYPES[2];}
 function themeColor(n){for(var i=0;i<THEMES.length;i++){if(THEMES[i].n===n)return THEMES[i].c;}return "#a8a8a8";}
 function themeExists(n){for(var i=0;i<THEMES.length;i++){if(THEMES[i].n===n)return true;}return false;}
@@ -517,9 +523,16 @@ function windowCardHTML(it){
   var ph=it.cover?('<img class="ph" src="'+it.cover+'" alt="">'):('<img class="ph" src="'+placeholder(it)+'" alt="">'+(it.type==="diorama"?'<div class="noimg">未上传照片</div>':''));
   var tag='<span class="type-tag" style="background:'+col+'">'+typeMeta(it.type).n+'</span>';
   var sub='';
-  if(it.type==="book")sub=(it.author||"未知")+(it.total?' · '+it.total+'章':'');
-  else if(it.type==="film")sub='<span class="stars">'+starHTML(it.rating)+'</span><span class="status-tag">'+FILM_STATUS[it.status||"wish"]+'</span>';
-  else sub=esc(it.theme||"其他");
+  if(it.type==="book"){
+    sub=(it.author||"未知");
+    if(it.total)sub+=' · '+it.total+'章';
+    sub+=' <span class="status-tag">'+BOOK_STATUS[it.status||"want"]+'</span>';
+    if(it.rating)sub+=' <span class="stars">'+starHTML(it.rating)+'</span>';
+  } else if(it.type==="film"){
+    sub='<span class="status-tag">'+FILM_STATUS[it.status||"wish"]+'</span> <span class="stars">'+starHTML(it.rating)+'</span>';
+    if(it.cat)sub+=' <span class="status-tag">'+esc(FILM_CAT[it.cat]||it.cat)+'</span>';
+    if(it.platform)sub+=' <span class="status-tag">'+esc(it.platform)+'</span>';
+  } else sub=esc(it.theme||"其他");
   return '<div class="work" data-id="'+it.id+'">'+ph+'<div class="info"><div class="nm">'+esc(it.title)+'</div><div class="meta">'+tag+'<span>'+sub+'</span><span>'+it.start.slice(5)+'</span></div></div></div>';
 }
 function renderWindowGrid(){
@@ -677,6 +690,8 @@ function openItemEditor(id){
   $("iTitle").value=it.title;
   $("iAuthor").value=it.author||"";$("iTotal").value=it.total||"";
   $("iStatus").value=it.status||"wish";S.editorRate=Number(it.rating)||0;
+  $("iBStatus").value=it.status||"want";
+  $("iCat").value=it.cat||"movie";$("iPlatform").value=it.platform||"";
   $("iTheme").value=it.theme||"森系";
   $("iStart").value=it.start;$("iEnd").value=it.end||it.start;
   $("iNote").value=it.note||"";S.editorImg=it.cover||null;
@@ -688,6 +703,7 @@ function openItemEditorNew(type){
   $("itemEditorTitle").textContent="添加"+(type==="book"?"小说":type==="film"?"影视":"造景");
   $("iTitle").value="";$("iAuthor").value="";$("iTotal").value="";
   $("iStatus").value="wish";S.editorRate=0;
+  $("iBStatus").value="want";$("iCat").value="movie";$("iPlatform").value="";
   $("iTheme").value="森系";
   $("iStart").value=todayStr();$("iEnd").value=todayStr();
   $("iNote").value="";S.editorImg=null;
@@ -703,8 +719,8 @@ function openItemDetail(id){
   $("diImg").src=it.cover?it.cover:placeholder(it);
   var dt=it.start+(it.end&&it.end!==it.start?" 至 "+it.end+"（共 "+daysOf(it)+" 天）":it.start);
   var meta='<span class="type-tag" style="background:'+col+'">'+typeMeta(it.type).n+'</span>';
-  if(it.type==="book")meta+='<span>'+(it.author||"未知")+(it.total?' · '+it.total+'章':'')+'</span>';
-  else if(it.type==="film")meta+='<span class="stars">'+starHTML(it.rating)+'</span><span class="status-tag">'+FILM_STATUS[it.status||"wish"]+'</span>';
+  if(it.type==="book"){meta+='<span>'+(it.author||"未知")+(it.total?' · '+it.total+'章':'')+'</span><span class="status-tag">'+BOOK_STATUS[it.status||"want"]+'</span>';if(it.rating)meta+='<span class="stars">'+starHTML(it.rating)+'</span>';}
+  else if(it.type==="film"){meta+='<span class="stars">'+starHTML(it.rating)+'</span><span class="status-tag">'+FILM_STATUS[it.status||"wish"]+'</span>';if(it.cat)meta+='<span class="status-tag">'+esc(FILM_CAT[it.cat]||it.cat)+'</span>';if(it.platform)meta+='<span class="status-tag">'+esc(it.platform)+'</span>';}
   else meta+='<span>'+esc(it.theme||"其他")+'</span>';
   meta+='<span>'+dt+'</span>';
   $("diMeta").innerHTML=meta;
@@ -718,8 +734,8 @@ function saveItem(){
   var end=$("iEnd").value||start;if(end<start){var tmp=start;start=end;end=tmp;}
   var note=$("iNote").value.trim();
   var obj={type:S.editorType,title:title,start:start,end:end,note:note,cover:S.editorImg};
-  if(S.editorType==="book"){obj.author=$("iAuthor").value.trim();obj.total=parseInt($("iTotal").value)||null;}
-  if(S.editorType==="film"){obj.status=$("iStatus").value;obj.rating=S.editorRate;}
+  if(S.editorType==="book"){obj.author=$("iAuthor").value.trim();obj.total=parseInt($("iTotal").value)||null;obj.status=$("iBStatus").value;obj.rating=S.editorRate;}
+  if(S.editorType==="film"){obj.status=$("iStatus").value;obj.rating=S.editorRate;obj.cat=$("iCat").value;obj.platform=$("iPlatform").value.trim();}
   if(S.editorType==="diorama"){obj.theme=$("iTheme").value;}
   if(S.curItem){var o=find(S.items,S.curItem);Object.assign(o,obj);}
   else{S.items.push(Object.assign({id:"i"+Date.now()},obj));}
@@ -788,22 +804,34 @@ function importAll(file){
 }
 function clearAll(){if(confirm("确定清空全部记录与购入数据？此操作不可撤销。")){S.items=[];S.buys=[];saveItems();saveBuys();refreshAll();renderMine();toast("已清空");}}
 /* 旧站（追文记/eyes on）备份文件 → 合并站增量导入 */
-function tsToDate(ts){var d=new Date(ts);return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());}
+function tsToDate(ts){if(!ts)return todayStr();var d=new Date(ts);if(isNaN(d))return todayStr();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());}
+function normBookStatus(s){if(!s)return "want";s=(""+s).toLowerCase();if(s==="reading"||s==="read"||s==="reading"||s==="进行中")return "reading";if(s==="done"||s==="finished"||s==="complete"||s==="读完")return "done";if(s==="want"||s==="wish"||s==="todo"||s==="想读")return "want";if(s==="paused"||s==="hold"||s==="搁置")return "paused";return "want";}
 function convertLegacy(d){
   var out=[];
-  if(d&&d.books&&Array.isArray(d.books)){               // 追文记：books + bookday
-    var bookday=d.bookday||{},range={};
+  if(!d||typeof d!=="object")return out;
+  /* ---------- 追文记：books 数组 或 旧版 bd 对象 + bookday ---------- */
+  if((d.books&&Array.isArray(d.books))||(d.bd&&typeof d.bd==="object"&&!Array.isArray(d.bd))){
+    var rawBooks=d.books&&Array.isArray(d.books)?d.books:Object.keys(d.bd).map(function(k){var b=d.bd[k];if(!b)return null;b=Object.assign({},b);b.id=k;return b;}).filter(Boolean);
+    var bookday=d.bookday||d.zwj_bookday||{},range={};
     Object.keys(bookday).forEach(function(k){var rec=bookday[k];if(rec&&typeof rec==="object"){Object.keys(rec).forEach(function(bid){if(!range[bid])range[bid]={min:k,max:k};else{if(k<range[bid].min)range[bid].min=k;if(k>range[bid].max)range[bid].max=k;}});}});
-    d.books.forEach(function(b){
+    rawBooks.forEach(function(b){
       var t=range[b.id],start,end;
       if(t){start=t.min;end=t.max;}
       else if(b.startTime){start=tsToDate(b.startTime);end=b.finishTime?tsToDate(b.finishTime):start;}
       else{start=todayStr();end=todayStr();}
-      out.push({id:"bk_"+b.id,type:"book",title:b.title||"",author:b.author||"",total:b.totalPages||0,start:start,end:end,cover:b.cover||null,note:""});
+      var note=[b.review||"",Array.isArray(b.notes)?b.notes.join("\n"):"",b.isbn?("ISBN："+b.isbn):""].filter(Boolean).join("\n");
+      out.push({id:"bk_"+b.id,type:"book",title:b.title||"",author:b.author||"",total:b.totalPages||b.total||0,cur:b.currentPage||0,status:normBookStatus(b.status),rating:Number(b.rating)||0,platform:b.platform||"",start:start,end:end,cover:b.cover||null,note:note});
     });
-  } else if(d&&d.items&&Array.isArray(d.items)){        // eyes on 或合并站自身备份
-    if(d.app==="eyes on"||(d.cats&&typeof d.cats==="object")){
-      d.items.forEach(function(f){out.push({id:"fm_"+(f.id||("x"+Math.random().toString(36).slice(2,8))),type:"film",title:f.title||"",status:f.status||"wish",rating:f.rating||0,start:f.start||"",end:f.end||"",cover:f.cover||null,note:(f.review||f.note||"")});});
+  }
+  /* ---------- eyes on / 合并站自身备份 ---------- */
+  else if(d.items&&Array.isArray(d.items)){
+    var isEyes=(d.app==="eyes on")||(d.cats&&typeof d.cats==="object");
+    if(isEyes||(d.items[0]&&(d.items[0].status||d.items[0].review!==undefined||d.items[0].cat!==undefined))){
+      d.items.forEach(function(f){
+        if(!f)return;
+        var note=[f.review||"",f.note||""].filter(Boolean).join("\n");
+        out.push({id:"fm_"+(f.id||("x"+Math.random().toString(36).slice(2,8))),type:"film",title:f.title||"",status:f.status||"wish",rating:Number(f.rating)||0,cat:f.cat||"",platform:f.platform||f.plat||"",cur:f.current||0,tot:f.total||0,start:f.start||"",end:f.end||"",cover:f.cover||null,note:note});
+      });
     } else if(d.items[0]&&d.items[0].type){
       d.items.forEach(function(it){out.push(it);});
     }
