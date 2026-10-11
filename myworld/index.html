@@ -498,6 +498,31 @@ function saveBuys(){localStorage.setItem(BK,JSON.stringify(S.buys));}
 function pad(n){return n<10?"0"+n:""+n;}
 function fmt(y,m,d){return y+"-"+pad(m+1)+"-"+pad(d);}
 function todayStr(){var t=new Date();return fmt(t.getFullYear(),t.getMonth(),t.getDate());}
+/* 把任意日期写法统一成零填充的 YYYY-MM-DD，让月历的字符串比较(covers)始终成立。
+   兼容：YYYY-MM-DD / YYYY-M-D(未补零) / 带时分秒的 ISO(2026-10-06T00:00:00.000Z) / 时间戳(秒或毫秒)。 */
+function normDate(v){
+  if(v===null||v===undefined||v==="")return "";
+  if(typeof v==="number"||/^\d{10,13}$/.test(""+v)){
+    var n=(""+v).length>10?(+(""+v)):(+(""+v)*1000);
+    var d=new Date(n);
+    if(!isNaN(d.getTime()))return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+    return "";
+  }
+  v=""+v;
+  var m=/^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(v);
+  if(m)return m[1]+"-"+pad(+m[2])+"-"+pad(+m[3]);
+  var d2=new Date(v);
+  if(!isNaN(d2.getTime()))return d2.getFullYear()+"-"+pad(d2.getMonth()+1)+"-"+pad(d2.getDate());
+  return "";
+}
+/* 从 eyes on 的逐日 marks 反推起止日期（marks 才是真源，start/end 只是派生缓存，导出时可能为空） */
+function marksRange(f){
+  if(!f||!f.marks||typeof f.marks!=="object")return null;
+  var ks=Object.keys(f.marks).map(normDate).filter(function(k){return /^\d{4}-\d{2}-\d{2}$/.test(k);});
+  if(!ks.length)return null;
+  ks.sort();
+  return {start:ks[0],end:ks[ks.length-1]};
+}
 function esc(s){return (s||"").replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
 function $(id){return document.getElementById(id);}
 function find(arr,id){for(var i=0;i<arr.length;i++){if(arr[i].id===id)return arr[i];}return null;}
@@ -877,10 +902,12 @@ function convertLegacy(d){
     var bookday=d.bookday||d.zwj_bookday||{},range={};
     Object.keys(bookday).forEach(function(k){var rec=bookday[k];if(rec&&typeof rec==="object"){Object.keys(rec).forEach(function(bid){if(!range[bid])range[bid]={min:k,max:k};else{if(k<range[bid].min)range[bid].min=k;if(k>range[bid].max)range[bid].max=k;}});}});
     rawBooks.forEach(function(b){
-      var t=range[b.id],start,end;
-      if(t){start=t.min;end=t.max;}
-      else if(b.startTime){start=tsToDate(b.startTime);end=b.finishTime?tsToDate(b.finishTime):start;}
+      var t=range[b.id],start="",end="";
+      if(t){start=normDate(t.min);end=normDate(t.max);}
+      else if(b.startTime){start=normDate(b.startTime);end=normDate(b.finishTime||b.startTime);}
       else{start=todayStr();end=todayStr();}
+      if(!end)end=start;
+      if(start&&end&&end<start){var _t=start;start=end;end=_t;}
       var note=[b.review||"",Array.isArray(b.notes)?b.notes.join("\n"):"",b.isbn?("ISBN："+b.isbn):""].filter(Boolean).join("\n");
       out.push({id:"bk_"+b.id,type:"book",title:b.title||"",author:b.author||"",total:b.totalPages||b.total||0,cur:b.currentPage||0,status:normBookStatus(b.status),rating:Number(b.rating)||0,platform:b.platform||"",start:start,end:end,cover:b.cover||null,note:note});
     });
@@ -891,11 +918,24 @@ function convertLegacy(d){
     if(isEyes||(d.items[0]&&(d.items[0].status||d.items[0].review!==undefined||d.items[0].cat!==undefined))){
       d.items.forEach(function(f){
         if(!f)return;
+        var mr=marksRange(f);
+        var start=normDate(f.start)||(mr?mr.start:"");
+        var end=normDate(f.end)||(mr?mr.end:start);
+        if(!end)end=start;
+        if(start&&end&&end<start){var _t=start;start=end;end=_t;}
         var note=[f.review||"",f.note||""].filter(Boolean).join("\n");
-        out.push({id:"fm_"+(f.id||("x"+Math.random().toString(36).slice(2,8))),type:"film",title:f.title||"",status:f.status||"wish",rating:Number(f.rating)||0,cat:f.cat||"",platform:f.platform||f.plat||"",cur:f.current||0,tot:f.total||0,start:f.start||"",end:f.end||"",cover:f.cover||null,note:note});
+        out.push({id:"fm_"+(f.id||("x"+Math.random().toString(36).slice(2,8))),type:"film",title:f.title||"",status:f.status||"wish",rating:Number(f.rating)||0,cat:f.cat||"",platform:f.platform||f.plat||"",cur:f.current||0,tot:f.total||0,start:start,end:end,cover:f.cover||null,note:note});
       });
     } else if(d.items[0]&&d.items[0].type){
-      d.items.forEach(function(it){out.push(it);});
+      d.items.forEach(function(it){
+        if(!it)return;
+        it=Object.assign({},it);
+        var s=normDate(it.start),e=normDate(it.end)||s;
+        if(!e)e=s;
+        if(s&&e&&e<s){var _t=s;s=e;e=_t;}
+        it.start=s;it.end=e;
+        out.push(it);
+      });
     }
   }
   return out;
@@ -1016,7 +1056,10 @@ function bind(){
 
 /* ================= 初始化 ================= */
 function init(){
-  S.items=load(WK);S.buys=load(BK);migrateOld();
+  S.items=load(WK);S.buys=load(BK);
+  /* 自动校正历史数据里的日期写法（未补零 / ISO 带时分 / 时间戳 / 起止颠倒），让月历正确归位 */
+  S.items.forEach(function(it){var s=normDate(it.start),e=normDate(it.end)||s;if(!e)e=s;if(s&&e&&e<s){var _t=s;s=e;e=_t;}it.start=s;it.end=e;});
+  migrateOld();
   if(!localStorage.getItem(SEED) && !S.items.length){loadSeed();localStorage.setItem(SEED,"1");}
   var t=new Date();S.calY=t.getFullYear();S.calM=t.getMonth();
   buildThemeSelect();bind();renderCalFilters();switchTab("window");refreshAll();
