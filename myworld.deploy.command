@@ -1,7 +1,7 @@
 #!/bin/bash
 # my world 一键部署脚本（双击或终端运行均可）
 # 用法: bash myworld.deploy.command "本次改动说明"
-# 链路: hobby-calendar.html -> myworld/index.html -> git push(SSH 免 Token) -> Cloudflare 自动部署 myworld.pages.dev
+# 链路: hobby-calendar.html -> myworld/index.html -> git push(SSH 免 Token) -> Cloudflare 自动部署 myworld0311.pages.dev
 # 与 eyes on / 追文记 deploy.command 同源，仅路径/产物名/站点不同。
 set -e
 
@@ -47,12 +47,12 @@ git add myworld/index.html
 git commit -m "${1:-更新 my world}" || echo "  (无新提交)"
 git push origin main
 
-echo "✅ 已推送！Cloudflare 正在自动部署到 myworld.pages.dev（硬刷新即可见）"
+echo "✅ 已推送！Cloudflare 正在自动部署到 myworld0311.pages.dev（硬刷新即可见）"
 echo "   如需回滚: cp \"$BACKUP_DIR/myworld_${TS}.html\" \"$DEPLOYED\" && git add myworld/index.html && git commit -m '回滚到 ${TS}' && git push"
 echo "▶ 等待 Cloudflare 重新部署(约 8 秒)后打开验收页面…"
 sleep 8
-(open "https://myworld.pages.dev" &) || true
-echo "   已打开 myworld.pages.dev，若看到旧版请 Cmd+Shift+R 硬刷新。"
+(open "https://myworld0311.pages.dev" &) || true
+echo "   已打开 myworld0311.pages.dev，若看到旧版请 Cmd+Shift+R 硬刷新。"
 
 if [ -t 0 ]; then
   echo ""
