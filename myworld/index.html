@@ -174,12 +174,12 @@
     .stats{grid-template-columns:repeat(2,1fr);}
     .grid{gap:10px;}
     .cal-week{min-height:78px;}
-    .hero{display:flex;align-items:stretch;}
-    .hero .cover{width:38%;flex:0 0 auto;aspect-ratio:1/1;border-radius:0;object-position:center;}
-    .hero .info{flex:1;padding:14px 16px;display:flex;flex-direction:column;justify-content:center;}
-    .hero h2{font-size:16px;}
-    .hero .sub{font-size:11px;margin-top:4px;}
-    .hero .tag{font-size:10px;padding:2px 8px;margin-bottom:6px;}
+    .hero{display:flex;align-items:center;gap:12px;padding:12px;}
+    .hero .cover{width:90px;height:90px;flex:0 0 auto;border-radius:var(--radius-sm);aspect-ratio:1/1;}
+    .hero .info{flex:1;padding:0;display:block;}
+    .hero h2{font-size:15px;}
+    .hero .sub{font-size:11px;margin-top:3px;}
+    .hero .tag{font-size:10px;padding:2px 8px;margin-bottom:5px;}
   }
 </style>
 </head>
@@ -478,6 +478,7 @@ function renderHero(){
     hero.className="hero";hero.innerHTML='<div class="info"><div class="tag" style="background:var(--ink)">开始</div><h2>还没有作品</h2><div class="sub">点右上角「添加作品」，上传第一张造景照片</div></div>';
     hero.onclick=function(){openWorkEditor(null,null);};return;
   }
+  hero.className="hero";
   var w=list.find(function(x){return x.cover;})||list[0];var col=themeColor(w.theme);
   var cover=w.cover?('<img class="cover" src="'+w.cover+'" alt="">'):('<img class="cover" src="'+sceneSVG(w.theme)+'" alt="">');
   var dt=w.start+(w.end&&w.end!==w.start?" – "+w.end:"");
