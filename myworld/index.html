@@ -416,8 +416,12 @@ var SEED_BUYS=[
 var S={works:[],buys:[],tab:"exhibit",calY:0,calM:0,curWork:null,curBuy:null,editorImg:null,workSearch:"",workTheme:"",buyPlat:""};
 
 function load(k){ try{return JSON.parse(localStorage.getItem(k))||[];}catch(e){return [];} }
-function saveWorks(){ localStorage.setItem(WK,JSON.stringify(S.works)); }
-function saveBuys(){ localStorage.setItem(BK,JSON.stringify(S.buys)); }
+function isQuotaErr(e){ return e && (e.name==="QuotaExceededError"||e.name==="NS_ERROR_DOM_QUOTA_REACHED"||e.code===22||e.code===1014); }
+/* 安全写入：配额超限返回错误对象而非抛异常，便于上层给出明确提示 */
+function safeSet(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); return true; }catch(e){ return e; } }
+function quotaToast(){ toast("存储空间已满：图片太多或太大，浏览器本地空间不够。请删除部分作品，或改用更小的图片后再保存。"); }
+function saveWorks(){ var r=safeSet(WK,S.works); if(r!==true){ S._saveErr=r; return false; } return true; }
+function saveBuys(){ var r=safeSet(BK,S.buys); if(r!==true){ S._saveErr=r; return false; } return true; }
 function pad(n){return n<10?"0"+n:""+n;}
 function fmt(y,m,d){return y+"-"+pad(m+1)+"-"+pad(d);}
 function todayStr(){var t=new Date();return fmt(t.getFullYear(),t.getMonth(),t.getDate());}
@@ -442,7 +446,8 @@ function migrateOld(){
   if(oldW.length && !S.works.length){
     S.works=oldW.map(function(w){return {id:w.id||"w"+Date.now()+Math.floor(Math.random()*1000),title:w.title||"",theme:themeExists(w.theme)?w.theme:"其他",start:w.date||todayStr(),end:w.date||todayStr(),cover:w.cover||null,note:w.note||""};});
   }
-  /* 合并期(14:04 起)把造景存进了 wb_myworld_items(type:"diorama")，回退时捞回，避免丢数据 */
+  /* 合并期(14:04 起)把造景存进了 wb_myworld_items(type:"diorama")，回退时捞回，避免丢数据。
+     迁移完成后该旧键已不再使用，且往往体积很大（含 base64 大图），直接删除以回收 localStorage 配额 */
   try{
     var merged=JSON.parse(localStorage.getItem("wb_myworld_items"))||[];
     merged.forEach(function(it){
@@ -450,6 +455,7 @@ function migrateOld(){
         S.works.push({id:it.id,title:it.title||"",theme:themeExists(it.theme)?it.theme:"其他",start:normDate(it.start)||todayStr(),end:normDate(it.end)||normDate(it.start)||todayStr(),cover:it.cover||null,note:it.note||""});
       }
     });
+    if(merged.length){ localStorage.removeItem("wb_myworld_items"); }
   }catch(e){}
   if(S.works.length) saveWorks();
   if(oldB.length && !S.buys.length){
@@ -710,11 +716,16 @@ function saveWork(){
   var end=$("wEnd").value||start;if(end<start){var tmp=start;start=end;end=tmp;}
   var theme=$("wTheme").value;var note=$("wNote").value.trim();
   if(S.curWork){
-    var w=find(S.works,S.curWork);w.title=title;w.theme=theme;w.start=start;w.end=end;w.note=note;w.cover=S.editorImg;
+    var w=find(S.works,S.curWork);
+    var prev={title:w.title,theme:w.theme,start:w.start,end:w.end,note:w.note,cover:w.cover};
+    w.title=title;w.theme=theme;w.start=start;w.end=end;w.note=note;w.cover=S.editorImg;
+    if(!saveWorks()){ Object.assign(w,prev); quotaToast(); return; }
   }else{
-    S.works.push({id:"w"+Date.now(),title:title,theme:theme,start:start,end:end,note:note,cover:S.editorImg});
+    var nw={id:"w"+Date.now(),title:title,theme:theme,start:start,end:end,note:note,cover:S.editorImg};
+    S.works.push(nw);
+    if(!saveWorks()){ S.works.pop(); quotaToast(); return; }
   }
-  saveWorks();$("ovWork").classList.remove("show");refreshExhibit();refreshCal();toast("已保存");
+  $("ovWork").classList.remove("show");refreshExhibit();refreshCal();toast("已保存");
 }
 function delWork(id){
   S.works=S.works.filter(function(w){return w.id!==id;});
@@ -751,11 +762,15 @@ function saveBuy(){
   var brand=$("bBrand").value.trim();var plat=$("bPlat").value;var date=$("bDate").value;var note=$("bNote").value.trim();
   if(!date)date=todayStr();
   if(S.curBuy){
-    var b=find(S.buys,S.curBuy);b.name=name;b.brand=brand;b.price=price;b.plat=plat;b.date=date;b.note=note;
+    var b=find(S.buys,S.curBuy);
+    var pb={name:b.name,brand:b.brand,price:b.price,plat:b.plat,date:b.date,note:b.note};
+    b.name=name;b.brand=brand;b.price=price;b.plat=plat;b.date=date;b.note=note;
+    if(!saveBuys()){ Object.assign(b,pb); quotaToast(); return; }
   }else{
     S.buys.push({id:"b"+Date.now(),name:name,brand:brand,price:price,plat:plat,date:date,note:note});
+    if(!saveBuys()){ S.buys.pop(); quotaToast(); return; }
   }
-  saveBuys();$("ovBuy").classList.remove("show");refreshBuy();refreshExhibit();toast("已记录");
+  $("ovBuy").classList.remove("show");refreshBuy();refreshExhibit();toast("已记录");
 }
 function delBuy(id){
   S.buys=S.buys.filter(function(b){return b.id!==id;});
@@ -768,11 +783,11 @@ function compressImg(file,cb){
   reader.onload=function(ev){
     var img=new Image();
     img.onload=function(){
-      var max=1000,w=img.width,h=img.height,scale=Math.min(1,max/Math.max(w,h));
+      var max=800,w=img.width,h=img.height,scale=Math.min(1,max/Math.max(w,h));
       var cw=Math.round(w*scale),ch=Math.round(h*scale);
       var cv=document.createElement("canvas");cv.width=cw;cv.height=ch;
       cv.getContext("2d").drawImage(img,0,0,cw,ch);
-      cb(cv.toDataURL("image/jpeg",0.82));
+      cb(cv.toDataURL("image/jpeg",0.72));
     };
     img.src=ev.target.result;
   };
