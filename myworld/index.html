@@ -45,13 +45,7 @@
   .stat-card .lbl{font-size:10px;color:var(--muted);margin-top:5px;text-transform:uppercase;letter-spacing:.4px;}
 
   /* ---------- 橱窗 ---------- */
-  .hero{background:var(--card);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);margin-bottom:16px;cursor:pointer;transition:transform .15s ease,box-shadow .15s ease;}
-  .hero:hover{transform:translateY(-2px);box-shadow:var(--shadow-hover);}
-  .hero .cover{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;background:var(--surface);}
-  .hero .info{padding:16px 18px 17px;}
-  .hero .tag{display:inline-block;font-size:11px;font-weight:600;color:#fff;padding:3px 10px;border-radius:999px;margin-bottom:8px;}
-  .hero h2{font-size:19px;font-weight:800;line-height:1.25;}
-  .hero .sub{font-size:12px;color:var(--muted);margin-top:6px;}
+  /* hero 大卡已移除：橱窗直接陈列全部类型 */
 
   .sec{display:flex;align-items:center;gap:10px;margin:20px 0 12px;}
   .sec h3{font-size:16px;font-weight:800;}
@@ -202,14 +196,13 @@
     </div>
   </div>
 
-  <!-- 橱窗（仅展示造景作品） -->
+  <!-- 橱窗（陈列小说 / 影视 / 造景） -->
   <section class="view active" id="view-window">
-    <div id="hero"></div>
     <div class="sec"><h3>我的橱窗</h3><span class="count" id="windowCount"></span><span class="line"></span></div>
-    <div class="chips" id="themeFilters"></div>
+    <div class="chips" id="typeFilters"></div>
     <div class="search">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8e8e93" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
-      <input type="text" id="windowSearch" placeholder="搜索造景作品…" maxlength="40">
+      <input type="text" id="windowSearch" placeholder="搜索小说 / 影视 / 造景…" maxlength="40">
     </div>
     <div class="grid" id="windowGrid"></div>
   </section>
@@ -475,7 +468,7 @@ var SEED_BUYS=[
   {id:"s4",name:"城市夜景荧光贴",brand:"纸间",price:36,plat:"淘宝",date:"2026-10-15",note:"荧光点在暗处会亮"}
 ];
 
-var S={items:[],buys:[],tab:"window",calY:0,calM:0,curItem:null,curBuy:null,editorImg:null,editorType:"diorama",editorRate:0,themeFilter:"",windowSearch:"",calFilter:"",buyPlat:""};
+var S={items:[],buys:[],tab:"window",calY:0,calM:0,curItem:null,curBuy:null,editorImg:null,editorType:"diorama",editorRate:0,typeFilter:"",windowSearch:"",calFilter:"",buyPlat:""};
 
 function load(k){try{return JSON.parse(localStorage.getItem(k))||[];}catch(e){return [];}}
 function saveItems(){localStorage.setItem(WK,JSON.stringify(S.items));}
@@ -501,53 +494,43 @@ function migrateOld(){
   if(ob.length && !S.buys.length){S.buys=ob.map(function(b){return Object.assign({id:"b"+Date.now()+Math.floor(Math.random()*1000)},b);});saveBuys();}
 }
 
-/* ================= 橱窗（仅造景） ================= */
-function dioramaItems(){return S.items.filter(function(it){return it.type==="diorama";});}
-function sortedDioramas(){return dioramaItems().slice().sort(function(a,b){return a.start<b.start?1:(a.start>b.start?-1:0);});}
-function filteredDioramas(){
+/* ================= 橱窗（全部类型：小说 / 影视 / 造景） ================= */
+function windowAll(){return S.items.slice().sort(function(a,b){return a.start<b.start?1:(a.start>b.start?-1:0);});}
+function filteredWindow(){
   var q=S.windowSearch.trim().toLowerCase();
-  return sortedDioramas().filter(function(it){
-    if(S.themeFilter && it.theme!==S.themeFilter)return false;
-    if(q){var hay=(it.title+" "+(it.theme||"")+" "+(it.note||"")).toLowerCase();if(hay.indexOf(q)<0)return false;}
+  return windowAll().filter(function(it){
+    if(S.typeFilter && it.type!==S.typeFilter)return false;
+    if(q){var hay=(it.title+" "+(it.author||"")+" "+(it.theme||"")+" "+(FILM_STATUS[it.status]||"")+" "+(it.note||"")).toLowerCase();if(hay.indexOf(q)<0)return false;}
     return true;
   });
 }
-function renderHero(){
-  var list=sortedDioramas();var hero=$("hero");
-  if(!list.length){
-    hero.className="hero";hero.innerHTML='<div class="info"><div class="tag" style="background:var(--ink)">开始</div><h2>还没有造景作品</h2><div class="sub">点右上角「添加造景」，上传第一张造景照片</div></div>';
-    hero.onclick=function(){openItemEditorNew("diorama");};return;
-  }
-  var it=list[0];var col=themeColor(it.theme);
-  var cover=it.cover?('<img class="cover" src="'+it.cover+'" alt="">'):('<img class="cover" src="'+placeholder(it)+'" alt="">');
-  var dt=it.start+(it.end&&it.end!==it.start?" – "+it.end:"");
-  hero.innerHTML=cover+'<div class="info"><span class="tag" style="background:'+col+'">最新 · '+esc(it.theme||"其他")+'</span><h2>'+esc(it.title)+'</h2><div class="sub">'+dt+' · '+(it.note?esc(it.note.slice(0,30)):(""))+'</div></div>';
-  hero.onclick=function(){openItemDetail(it.id);};
-}
-function renderThemeFilters(){
-  var box=$("themeFilters");box.innerHTML="";
-  var all=document.createElement("div");all.className="chip"+(S.themeFilter===""?" active":"");all.textContent="全部";
-  all.onclick=function(){S.themeFilter="";renderThemeFilters();renderWindowGrid();};box.appendChild(all);
-  THEMES.forEach(function(th){
-    var d=document.createElement("div");d.className="chip"+(S.themeFilter===th.n?" active":"");
-    d.innerHTML='<span class="dot" style="background:'+th.c+'"></span>'+th.n;
-    d.onclick=function(){S.themeFilter=th.n;renderThemeFilters();renderWindowGrid();};box.appendChild(d);
+function renderTypeFilters(){
+  var box=$("typeFilters");box.innerHTML="";
+  var opts=[{t:"",n:"全部"}].concat(TYPES);
+  opts.forEach(function(o){
+    var d=document.createElement("div");d.className="chip"+(S.typeFilter===o.t?" active":"");d.textContent=o.n;
+    d.onclick=function(){S.typeFilter=o.t;renderTypeFilters();renderWindowGrid();};box.appendChild(d);
   });
 }
-function dioramaCardHTML(it){
-  var col=themeColor(it.theme);
-  var ph=it.cover?('<img class="ph" src="'+it.cover+'" alt="">'):('<img class="ph" src="'+placeholder(it)+'" alt=""><div class="noimg">未上传照片</div>');
-  return '<div class="work" data-id="'+it.id+'">'+ph+'<div class="info"><div class="nm">'+esc(it.title)+'</div><div class="meta"><span class="th" style="background:'+col+'">'+esc(it.theme||"其他")+'</span><span>'+it.start.slice(5)+'</span></div></div></div>';
+function windowCardHTML(it){
+  var col=it.type==="diorama"?themeColor(it.theme):typeMeta(it.type).c;
+  var ph=it.cover?('<img class="ph" src="'+it.cover+'" alt="">'):('<img class="ph" src="'+placeholder(it)+'" alt="">'+(it.type==="diorama"?'<div class="noimg">未上传照片</div>':''));
+  var tag='<span class="type-tag" style="background:'+col+'">'+typeMeta(it.type).n+'</span>';
+  var sub='';
+  if(it.type==="book")sub=(it.author||"未知")+(it.total?' · '+it.total+'章':'');
+  else if(it.type==="film")sub='<span class="stars">'+starHTML(it.rating)+'</span><span class="status-tag">'+FILM_STATUS[it.status||"wish"]+'</span>';
+  else sub=esc(it.theme||"其他");
+  return '<div class="work" data-id="'+it.id+'">'+ph+'<div class="info"><div class="nm">'+esc(it.title)+'</div><div class="meta">'+tag+'<span>'+sub+'</span><span>'+it.start.slice(5)+'</span></div></div></div>';
 }
 function renderWindowGrid(){
-  var list=filteredDioramas();
-  $("windowCount").textContent="共 "+list.length+" 件";
+  var list=filteredWindow();
+  $("windowCount").textContent="共 "+list.length+" 项";
   var grid=$("windowGrid");
-  if(!list.length){grid.innerHTML='<div class="empty">还没有造景作品<br>点右上角添加或切换筛选条件</div>';return;}
-  grid.innerHTML=list.map(dioramaCardHTML).join("");
+  if(!list.length){grid.innerHTML='<div class="empty">还没有内容<br>点右上角添加小说 / 影视 / 造景</div>';return;}
+  grid.innerHTML=list.map(windowCardHTML).join("");
   grid.querySelectorAll(".work").forEach(function(el){el.onclick=function(){openItemDetail(el.getAttribute("data-id"));};});
 }
-function refreshWindow(){renderHero();renderThemeFilters();renderWindowGrid();}
+function refreshWindow(){renderTypeFilters();renderWindowGrid();}
 
 /* ================= 月历 ================= */
 function buildWeeks(y,m){
@@ -853,7 +836,7 @@ function loadSeed(){
 }
 
 /* ================= 刷新 ================= */
-function refreshWindowFn(){renderHero();renderThemeFilters();renderWindowGrid();}
+function refreshWindowFn(){renderTypeFilters();renderWindowGrid();}
 function refreshCalFn(){renderCalendar();}
 function refreshBuyFn(){refreshBuyPage();}
 function refreshAll(){refreshWindowFn();refreshCalFn();refreshBuyFn();renderMine();}
