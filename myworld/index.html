@@ -795,6 +795,16 @@ function importAll(file){
   reader.onload=function(ev){
     try{
       var d=JSON.parse(ev.target.result);
+      /* 旧站备份（追文记 / eyes on）？用合并导入而非整库替换，避免影视被错判为造景 */
+      var looksLegacy=(d.books&&Array.isArray(d.books))||(d.bd&&typeof d.bd==="object"&&!Array.isArray(d.bd))||(d.items&&Array.isArray(d.items)&&(d.app==="eyes on"||(d.cats&&typeof d.cats==="object")||(d.items[0]&&(d.items[0].status||d.items[0].review!==undefined||d.items[0].cat!==undefined))));
+      if(looksLegacy){
+        var res=mergeLegacy(d);
+        if(res.added>0||res.replaced>0){saveItems();refreshAll();renderMine();}
+        var parts=[];
+        if(res.typeCount){if(res.typeCount.book)parts.push("小说 "+res.typeCount.book);if(res.typeCount.film)parts.push("影视 "+res.typeCount.film);if(res.typeCount.diorama)parts.push("造景 "+res.typeCount.diorama);}
+        toast("已合并旧站数据："+(parts.join("、")||"0")+" 条"+(res.replaced?("，更新 "+res.replaced+" 条"):(res.added?"，新增 "+res.added+" 条":"")));
+        return;
+      }
       if(d.items&&Array.isArray(d.items)){d.items.forEach(function(it){if(!it.id)it.id="i"+Date.now()+Math.floor(Math.random()*1000);if(!it.end)it.end=it.start;});S.items=d.items;}
       if(d.buys&&Array.isArray(d.buys)){d.buys.forEach(function(b){if(!b.id)b.id="b"+Date.now()+Math.floor(Math.random()*1000);});S.buys=d.buys;}
       saveItems();saveBuys();refreshAll();renderMine();toast("已导入恢复");
@@ -805,7 +815,7 @@ function importAll(file){
 function clearAll(){if(confirm("确定清空全部记录与购入数据？此操作不可撤销。")){S.items=[];S.buys=[];saveItems();saveBuys();refreshAll();renderMine();toast("已清空");}}
 /* 旧站（追文记/eyes on）备份文件 → 合并站增量导入 */
 function tsToDate(ts){if(!ts)return todayStr();var d=new Date(ts);if(isNaN(d))return todayStr();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());}
-function normBookStatus(s){if(!s)return "want";s=(""+s).toLowerCase();if(s==="reading"||s==="read"||s==="reading"||s==="进行中")return "reading";if(s==="done"||s==="finished"||s==="complete"||s==="读完")return "done";if(s==="want"||s==="wish"||s==="todo"||s==="想读")return "want";if(s==="paused"||s==="hold"||s==="搁置")return "paused";return "want";}
+function normBookStatus(s){if(!s)return "want";s=(""+s).toLowerCase();if(s==="reading"||s==="read"||s==="进行中")return "reading";if(s==="serial"||s==="serializing"||s==="连载"||s==="追更")return "reading";if(s==="done"||s==="finished"||s==="complete"||s==="读完")return "done";if(s==="want"||s==="wish"||s==="todo"||s==="想读")return "want";if(s==="paused"||s==="hold"||s==="搁置")return "paused";return "want";}
 function convertLegacy(d){
   var out=[];
   if(!d||typeof d!=="object")return out;
@@ -838,23 +848,46 @@ function convertLegacy(d){
   }
   return out;
 }
+function rawLegacyId(it){if(typeof it.id==="string"&&it.id.indexOf("bk_")===0)return it.id.slice(3);if(typeof it.id==="string"&&it.id.indexOf("fm_")===0)return it.id.slice(3);return it.id;}
+/* 合并旧站数据：转换为 book/film 后，按 id 覆盖已有同名记录（修正曾被错归为造景的旧数据），没有则新增 */
+function mergeLegacy(d){
+  var conv=convertLegacy(d);if(!conv.length)return {added:0,replaced:0,typeCount:{}};
+  var added=0,replaced=0,typeCount={};
+  conv.forEach(function(it){
+    var ex=find(S.items,it.id);if(!ex)ex=find(S.items,rawLegacyId(it));
+    if(ex){var idx=S.items.indexOf(ex);S.items[idx]=it;replaced++;}
+    else{S.items.push(it);added++;}
+    typeCount[it.type]=(typeCount[it.type]||0)+1;
+  });
+  return {added:added,replaced:replaced,typeCount:typeCount};
+}
 function importLegacyFiles(files){
   var arr=Array.prototype.slice.call(files);if(!arr.length)return;
-  var added=0,skipped=0,done=0;
+  var added=0,replaced=0,unrec=0,done=0,typeCount={};
   arr.forEach(function(file){
     var r=new FileReader();
     r.onload=function(){
-      try{convertLegacy(JSON.parse(r.result)).forEach(function(it){if(find(S.items,it.id)){skipped++;}else{S.items.push(it);added++;}});}catch(e){}
-      done++;if(done===arr.length)finishLegacyImport(added,skipped);
+      try{
+        var res=mergeLegacy(JSON.parse(r.result));
+        added+=res.added;replaced+=res.replaced;
+        if(res.typeCount)Object.keys(res.typeCount).forEach(function(k){typeCount[k]=(typeCount[k]||0)+res.typeCount[k];});
+      }catch(e){unrec++;}
+      done++;if(done===arr.length)finishLegacyImport(added,replaced,unrec,typeCount);
     };
     r.readAsText(file);
   });
 }
-function finishLegacyImport(added,skipped){
-  if(added>0){saveItems();refreshAll();renderMine();}
-  var msg="旧站数据导入完成：新增 "+added+" 条";
-  if(skipped)msg+="，跳过重复 "+skipped+" 条";
-  if(added===0&&skipped===0)msg="未识别到追文记 / eyes on 的备份数据，请确认文件来自原站点导出";
+function finishLegacyImport(added,replaced,unrec,typeCount){
+  if(added>0||replaced>0){saveItems();refreshAll();renderMine();}
+  var parts=[];
+  if(typeCount.book)parts.push("小说 "+typeCount.book);
+  if(typeCount.film)parts.push("影视 "+typeCount.film);
+  if(typeCount.diorama)parts.push("造景 "+typeCount.diorama);
+  var msg="旧站数据已合并："+(parts.join("、")||"0")+" 条";
+  if(replaced)msg+="（更新 "+replaced+" 条旧记录）";
+  if(added)msg+="，新增 "+added+" 条";
+  if(unrec)msg+="；"+unrec+" 个文件未识别";
+  if(added===0&&replaced===0&&!unrec)msg="未识别到追文记 / eyes on 的备份数据，请确认文件来自原站点导出";
   toast(msg);$("legacyTip").textContent=msg;
 }
 function loadSeed(){
