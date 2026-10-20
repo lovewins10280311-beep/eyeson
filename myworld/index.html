@@ -415,13 +415,55 @@ var SEED_BUYS=[
 
 var S={works:[],buys:[],tab:"exhibit",calY:0,calM:0,curWork:null,curBuy:null,editorImg:null,workSearch:"",workTheme:"",buyPlat:""};
 
-function load(k){ try{return JSON.parse(localStorage.getItem(k))||[];}catch(e){return [];} }
 function isQuotaErr(e){ return e && (e.name==="QuotaExceededError"||e.name==="NS_ERROR_DOM_QUOTA_REACHED"||e.code===22||e.code===1014); }
-/* 安全写入：配额超限返回错误对象而非抛异常，便于上层给出明确提示 */
-function safeSet(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); return true; }catch(e){ return e; } }
-function quotaToast(){ toast("存储空间已满：图片太多或太大，浏览器本地空间不够。请删除部分作品，或改用更小的图片后再保存。"); }
-function saveWorks(){ var r=safeSet(WK,S.works); if(r!==true){ S._saveErr=r; return false; } return true; }
-function saveBuys(){ var r=safeSet(BK,S.buys); if(r!==true){ S._saveErr=r; return false; } return true; }
+function quotaToast(){ toast("本地存储空间已满：图片太多或太大。已自动改用本机数据库存储，若仍失败请删除部分作品。"); }
+/* localStorage 兜底读（IDB 不可用或读空时回退） */
+function legacyLocalGet(k){ try{return JSON.parse(localStorage.getItem(k))||null;}catch(e){return null;} }
+function safeSetLocal(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); return true; }catch(e){ return e; } }
+
+/* ================= IndexedDB 主存储（配额远大于 localStorage） ================= */
+var IDB=null, IDB_READY=false;
+function idbOpen(cb){
+  if(IDB_READY||IDB==="err"){cb&&cb();return;}
+  if(!window.indexedDB){IDB="err";cb&&cb();return;}
+  try{
+    var req=indexedDB.open("myworld_db",1);
+    req.onupgradeneeded=function(e){var db=e.target.result;if(!db.objectStoreNames.contains("kv"))db.createObjectStore("kv");};
+    req.onsuccess=function(e){IDB=e.target.result;IDB_READY=true;cb&&cb();};
+    req.onerror=function(){IDB="err";cb&&cb();};
+  }catch(e){IDB="err";cb&&cb();}
+}
+function idbGet(k,cb){
+  idbOpen(function(){
+    if(IDB_READY){
+      try{
+        var tx=IDB.transaction("kv","readonly"),st=tx.objectStore("kv"),r=st.get(k);
+        r.onsuccess=function(){cb(r.result!=null?r.result:legacyLocalGet(k));};
+        r.onerror=function(){cb(legacyLocalGet(k));};
+      }catch(e){cb(legacyLocalGet(k));}
+    }else{cb(legacyLocalGet(k));}
+  });
+}
+function idbSet(k,v,cb){
+  idbOpen(function(){
+    if(IDB_READY){
+      try{
+        var tx=IDB.transaction("kv","readwrite"),st=tx.objectStore("kv");st.put(v,k);
+        tx.oncomplete=function(){cb&&cb(true);};
+        tx.onerror=function(){cb&&cb(false);};
+      }catch(e){cb&&cb(false);}
+    }else{cb&&cb(false);}
+  });
+}
+/* 主写入：IDB 可用时异步落库（配额充裕，不会撞 5MB 墙）；不可用时回退 localStorage */
+function saveWorks(){
+  if(IDB_READY){ idbSet(WK,S.works); return true; }
+  return safeSetLocal(WK,S.works)===true;
+}
+function saveBuys(){
+  if(IDB_READY){ idbSet(BK,S.buys); return true; }
+  return safeSetLocal(BK,S.buys)===true;
+}
 function pad(n){return n<10?"0"+n:""+n;}
 function fmt(y,m,d){return y+"-"+pad(m+1)+"-"+pad(d);}
 function todayStr(){var t=new Date();return fmt(t.getFullYear(),t.getMonth(),t.getDate());}
@@ -442,7 +484,7 @@ function toast(msg){var t=$("toast");t.textContent=msg;t.classList.add("show");c
 
 /* 迁移旧 diorama 数据（含合并期 wb_myworld_items 中的造景，回退时不丢） */
 function migrateOld(){
-  var oldW=load(OLDWK), oldB=load(OLDBK);
+  var oldW=legacyLocalGet(OLDWK)||[], oldB=legacyLocalGet(OLDBK)||[];
   if(oldW.length && !S.works.length){
     S.works=oldW.map(function(w){return {id:w.id||"w"+Date.now()+Math.floor(Math.random()*1000),title:w.title||"",theme:themeExists(w.theme)?w.theme:"其他",start:w.date||todayStr(),end:w.date||todayStr(),cover:w.cover||null,note:w.note||""};});
   }
@@ -457,7 +499,11 @@ function migrateOld(){
     });
     if(merged.length){ localStorage.removeItem("wb_myworld_items"); }
   }catch(e){}
-  if(S.works.length) saveWorks();
+  if(S.works.length && saveWorks()){
+    /* 主库写入成功后，旧键副本(常含整份 base64 大图)不再需要，删除以回收配额 */
+    try{localStorage.removeItem(OLDWK);}catch(e){}
+    try{localStorage.removeItem(OLDBK);}catch(e){}
+  }
   if(oldB.length && !S.buys.length){
     S.buys=oldB.map(function(b){return Object.assign({id:"b"+Date.now()+Math.floor(Math.random()*1000)},b);});
     saveBuys();
@@ -671,7 +717,7 @@ function renderBrandList(){
 function renderMine(){
   var wn=S.works.length,bn=S.buys.length;
   var kb=(JSON.stringify(S.works).length+JSON.stringify(S.buys).length)/1024;
-  $("mineTip").innerHTML="本机已保存 <b>"+wn+"</b> 件作品、<b>"+bn+"</b> 笔购入（约 "+kb.toFixed(1)+" KB）。建议定期导出备份。";
+  $("mineTip").innerHTML="本机已保存 <b>"+wn+"</b> 件作品、<b>"+bn+"</b> 笔购入（约 "+kb.toFixed(1)+" KB）。数据存于本机数据库，建议定期导出备份以防换设备丢失。";
   $("seedBtn").classList.toggle("hidden",wn+bn>0);
 }
 
@@ -877,12 +923,54 @@ function bind(){
   });
 }
 
+/* ================= 存储自动瘦身 ================= */
+/* 把历史大图(旧版 1000px/0.82 压缩)重压到 800px/0.72，腾出 localStorage 配额 */
+function recompressCover(dataUrl,cb){
+  var img=new Image();
+  img.onload=function(){
+    try{
+      var max=800,scale=Math.min(1,max/Math.max(img.width,img.height));
+      var cv=document.createElement("canvas");cv.width=Math.round(img.width*scale);cv.height=Math.round(img.height*scale);
+      var ctx=cv.getContext("2d");ctx.fillStyle="#fff";ctx.fillRect(0,0,cv.width,cv.height);
+      ctx.drawImage(img,0,0,cv.width,cv.height);
+      cb(cv.toDataURL("image/jpeg",0.72));
+    }catch(e){cb(dataUrl);}
+  };
+  img.onerror=function(){cb(dataUrl);};
+  img.src=dataUrl;
+}
+function healStorage(){
+  var TH=150000; /* base64 超过 ~150KB 视为大图 */
+  var jobs=S.works.filter(function(w){return w.cover&&typeof w.cover==="string"&&w.cover.indexOf("data:image")===0&&w.cover.length>TH;});
+  if(!jobs.length)return;
+  var done=0,changed=false;
+  jobs.forEach(function(w){
+    recompressCover(w.cover,function(small){
+      done++;
+      if(small&&small.length<w.cover.length*0.95){w.cover=small;changed=true;}
+      if(done===jobs.length)finish();
+    });
+  });
+  function finish(){
+    if(!changed)return;
+    if(saveWorks()){toast("已自动压缩历史图片，腾出存储空间");refreshExhibit();}
+    else quotaToast();
+  }
+}
+
 /* ================= 初始化 ================= */
 function init(){
-  S.works=load(WK);S.buys=load(BK);migrateOld();
-  if(!localStorage.getItem(SEED) && !S.works.length){loadSeed();localStorage.setItem(SEED,"1");}
-  var t=new Date();S.calY=t.getFullYear();S.calM=t.getMonth();
-  buildThemeSelect();bind();switchTab("exhibit");refreshAll();
+  idbGet(WK,function(w){
+    S.works=w||[];
+    idbGet(BK,function(b){
+      S.buys=b||[];
+      migrateOld();
+      if(!localStorage.getItem(SEED) && !S.works.length){loadSeed();localStorage.setItem(SEED,"1");}
+      var t=new Date();S.calY=t.getFullYear();S.calM=t.getMonth();
+      buildThemeSelect();bind();switchTab("exhibit");refreshAll();
+      healStorage();
+    });
+  });
 }
 init();
 </script>
