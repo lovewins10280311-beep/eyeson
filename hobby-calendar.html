@@ -369,11 +369,12 @@ var WK="wb_myworld_works", BK="wb_myworld_buys", SEED="wb_myworld_seeded";
 var OLDWK="wb_diorama_works", OLDBK="wb_diorama_buys";
 var THEMES=[
   {n:"森系",c:"#6a9b8a"},{n:"海洋",c:"#5a9bc7"},{n:"城市",c:"#8a86c7"},
-  {n:"童话",c:"#d68aae"},{n:"美食",c:"#d99a6a"},{n:"四季",c:"#9bb86a"},{n:"其他",c:"#a8a8a8"}
+  {n:"童话",c:"#d68aae"},{n:"美食",c:"#d99a6a"},{n:"四季",c:"#9bb86a"},{n:"其他",c:"#a8a8a8"},
+  {n:"话本",c:"#a9743f"},{n:"微恐",c:"#575173"},{n:"人物",c:"#c2807a"},{n:"神话",c:"#b8923e"},{n:"静物",c:"#7a8466"}
 ];
 function themeColor(n){ for(var i=0;i<THEMES.length;i++){if(THEMES[i].n===n)return THEMES[i].c;} return "#a8a8a8"; }
 function themeColorBar(n){
-  var map={"森系":"rgba(180,190,184,0.45)","海洋":"rgba(178,190,202,0.45)","城市":"rgba(188,186,200,0.45)","童话":"rgba(210,188,200,0.45)","美食":"rgba(212,194,178,0.45)","四季":"rgba(190,200,172,0.45)","其他":"rgba(190,190,190,0.45)"};
+  var map={"森系":"rgba(180,190,184,0.45)","海洋":"rgba(178,190,202,0.45)","城市":"rgba(188,186,200,0.45)","童话":"rgba(210,188,200,0.45)","美食":"rgba(212,194,178,0.45)","四季":"rgba(190,200,172,0.45)","其他":"rgba(190,190,190,0.45)","话本":"rgba(169,116,63,0.45)","微恐":"rgba(87,81,115,0.45)","人物":"rgba(194,128,122,0.45)","神话":"rgba(184,146,62,0.45)","静物":"rgba(122,132,102,0.45)"};
   return map[n]||"rgba(180,180,180,0.45)";
 }
 function themeExists(n){ for(var i=0;i<THEMES.length;i++){if(THEMES[i].n===n)return true;} return false; }
@@ -386,6 +387,11 @@ function sceneSVG(theme){
     "童话":{sky:["#f9eaf3","#fdf6fa"],g:"#d68aae",sun:"#fff0c2"},
     "美食":{sky:["#faf1e8","#fff9f2"],g:"#d99a6a",sun:"#ffffff"},
     "四季":{sky:["#eef6e6","#f7fbf2"],g:"#9bb86a",sun:"#f5e6a8"},
+    "话本":{sky:["#f7efdf","#fdf6e9"],g:"#a9743f",sun:"#e9cf9a"},
+    "微恐":{sky:["#2f2c3e","#3a3650"],g:"#575173",sun:"#9b94c0"},
+    "人物":{sky:["#fbeef0","#fdf4f5"],g:"#c2807a",sun:"#f6d9d2"},
+    "神话":{sky:["#f4ead0","#fbf3dd"],g:"#b8923e",sun:"#f3d27a"},
+    "静物":{sky:["#eef0ea","#f6f7f2"],g:"#7a8466",sun:"#e7e2c8"},
     "其他":{sky:["#f0f1f3","#f8f9fb"],g:"#a8a8a8",sun:"#f0e6c8"}
   }[theme]||{sky:["#f0f1f3","#f8f9fb"],g:"#a8a8a8",sun:"#f0e6c8"};
   var s='<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">'
