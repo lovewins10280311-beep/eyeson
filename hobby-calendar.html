@@ -145,6 +145,18 @@
   .field input,.field select,.field textarea{width:100%;height:46px;line-height:1.2;padding:10px 13px;border:none;border-radius:12px;background:var(--surface);font-size:16px;color:var(--ink);outline:none;font-family:inherit;}
   .field textarea{height:auto;resize:vertical;min-height:64px;}
   .field input[type=date]{-webkit-appearance:none;appearance:none;min-width:0;width:100%!important;box-sizing:border-box!important;height:46px!important;line-height:1.2;padding:11px 13px;text-align:left;}
+  /* 自定义可滚动下拉（封顶高度 + 超出滑动，避免选项增多时无限拉长） */
+  .dsel{position:relative;}
+  .dsel-btn{width:100%;height:46px;display:flex;align-items:center;justify-content:space-between;padding:10px 13px;border:none;border-radius:12px;background:var(--surface);font-size:16px;color:var(--ink);font-family:inherit;cursor:pointer;text-align:left;}
+  .dsel-btn .ph{color:var(--muted);}
+  .dsel-btn .caret{color:var(--muted);font-size:12px;flex:0 0 auto;transition:transform .15s ease;}
+  .dsel.open .dsel-btn .caret{transform:rotate(180deg);}
+  .dsel-pop{position:absolute;top:calc(100% + 6px);left:0;right:0;max-height:264px;overflow-y:auto;-webkit-overflow-scrolling:touch;background:var(--card);border:0.5px solid var(--line);border-radius:14px;box-shadow:var(--shadow-hover);z-index:60;padding:6px;display:none;}
+  .dsel.open .dsel-pop{display:block;}
+  .dsel-opt{padding:12px 13px;border-radius:10px;font-size:15px;color:var(--ink);cursor:pointer;display:flex;align-items:center;gap:8px;}
+  .dsel-opt .dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto;}
+  .dsel-opt.active{background:var(--surface);font-weight:600;}
+  .dsel-opt:active{background:var(--surface);}
   .two{display:grid;grid-template-columns:1fr 1fr;gap:11px;min-width:0;}
   .two>*{min-width:0;}
   .img-pick{width:100%;height:120px;border:1.5px dashed var(--line);border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;cursor:pointer;overflow:hidden;position:relative;background:var(--surface);}
@@ -286,7 +298,7 @@
       <div class="field"><label>开始日期</label><input type="date" id="wStart"></div>
       <div class="field"><label>结束日期</label><input type="date" id="wEnd"></div>
     </div>
-    <div class="field"><label>主题</label><select id="wTheme"></select></div>
+    <div class="field"><label>主题</label><div class="dsel" id="wTheme"><button type="button" class="dsel-btn"><span class="dsel-txt">森系</span><span class="caret">▾</span></button><div class="dsel-pop"></div></div></div>
     <div class="field">
       <label>封面图（拍照上传，自动压缩）</label>
       <div class="img-pick" id="wImgPick"><span id="wImgText">点击上传作品照片</span><img id="wImgPrev" class="hidden" alt=""></div>
@@ -326,7 +338,7 @@
     </div>
     <div class="two">
       <div class="field"><label>购入平台</label>
-        <select id="bPlat"><option>淘宝</option><option>拼多多</option><option>京东</option><option>抖音</option><option>闲鱼</option><option>微店</option><option>线下实体</option><option>其他</option></select>
+        <div class="dsel" id="bPlat"><button type="button" class="dsel-btn"><span class="dsel-txt">淘宝</span><span class="caret">▾</span></button><div class="dsel-pop"></div></div>
       </div>
       <div class="field"><label>购入日期</label><input type="date" id="bDate"></div>
     </div>
@@ -419,7 +431,7 @@ var SEED_BUYS=[
   {id:"b4",name:"城市夜景荧光贴",brand:"纸间",price:36,plat:"淘宝",date:"2026-10-15",note:"荧光点在暗处会亮"}
 ];
 
-var S={works:[],buys:[],tab:"exhibit",calY:0,calM:0,curWork:null,curBuy:null,editorImg:null,workSearch:"",workTheme:"",buyPlat:""};
+var S={works:[],buys:[],tab:"exhibit",calY:0,calM:0,curWork:null,curBuy:null,editorImg:null,workSearch:"",workTheme:"",buyPlat:"",curTheme:"森系",curPlat:"淘宝"};
 
 function isQuotaErr(e){ return e && (e.name==="QuotaExceededError"||e.name==="NS_ERROR_DOM_QUOTA_REACHED"||e.code===22||e.code===1014); }
 function quotaToast(){ toast("本地存储空间已满：图片太多或太大。已自动改用本机数据库存储，若仍失败请删除部分作品。"); }
@@ -728,20 +740,57 @@ function renderMine(){
 }
 
 /* ================= 作品编辑 / 详情 ================= */
-function buildThemeSelect(){
-  var sel=$("wTheme");sel.innerHTML="";
-  THEMES.forEach(function(t){var o=document.createElement("option");o.value=t.n;o.textContent=t.n;sel.appendChild(o);});
+/* ================= 自定义可滚动下拉 ================= */
+var PLATS=["淘宝","拼多多","京东","抖音","小红书","闲鱼","微店","线下实体","其他"];
+function dselTxt(id){ return $(id).querySelector(".dsel-txt"); }
+function dselPop(id){ return $(id).querySelector(".dsel-pop"); }
+function closeAllDsel(except){ ["wTheme","bPlat"].forEach(function(x){ if(x!==except) $(x).classList.remove("open"); }); }
+function buildDsel(id, items, current){
+  var pop=dselPop(id);pop.innerHTML="";
+  items.forEach(function(it){
+    var o=document.createElement("div");
+    o.className="dsel-opt"+(it.n===current?" active":"");
+    o.setAttribute("data-n",it.n);
+    if(it.c){ o.innerHTML='<span class="dot" style="background:'+it.c+'"></span>'+esc(it.n); }
+    else{ o.textContent=it.n; }
+    o.onclick=function(){
+      dselTxt(id).textContent=it.n;$(id).classList.remove("open");$(id)._val=it.n;
+      if(id==="wTheme")S.curTheme=it.n;
+      if(id==="bPlat")S.curPlat=it.n;
+    };
+    pop.appendChild(o);
+  });
+  dselTxt(id).textContent=current;$(id)._val=current;
+  if(id==="wTheme")S.curTheme=current;
+  if(id==="bPlat")S.curPlat=current;
 }
+function setDsel(id, value){
+  dselTxt(id).textContent=value;$(id)._val=value;
+  if(id==="wTheme")S.curTheme=value;
+  if(id==="bPlat")S.curPlat=value;
+  var pop=dselPop(id);
+  Array.prototype.forEach.call(pop.children, function(o){ o.classList.toggle("active", o.getAttribute("data-n")===value); });
+}
+function bindDsel(id){
+  $(id).querySelector(".dsel-btn").onclick=function(e){
+    e.stopPropagation();
+    var el=$(id), wasOpen=el.classList.contains("open");
+    closeAllDsel(id);
+    if(!wasOpen)el.classList.add("open");
+  };
+}
+function buildThemeSelect(){ buildDsel("wTheme", THEMES.map(function(t){return {n:t.n,c:t.c};}), "森系"); }
+function buildPlatSelect(){ buildDsel("bPlat", PLATS.map(function(p){return {n:p};}), "淘宝"); }
 function openWorkEditor(id,date){
   S.curWork=id;S.editorImg=null;
   if(id){
     var w=find(S.works,id);
     $("workEditorTitle").textContent="编辑作品";
-    $("wTitle").value=w.title;$("wTheme").value=w.theme;$("wStart").value=w.start;$("wEnd").value=w.end||w.start;
+    $("wTitle").value=w.title;setDsel("wTheme",w.theme);$("wStart").value=w.start;$("wEnd").value=w.end||w.start;
     $("wNote").value=w.note||"";S.editorImg=w.cover||null;$("wDel").classList.remove("hidden");
   }else{
     $("workEditorTitle").textContent="添加作品";
-    $("wTitle").value="";$("wTheme").value="森系";$("wStart").value=date||todayStr();$("wEnd").value=date||todayStr();
+    $("wTitle").value="";setDsel("wTheme","森系");$("wStart").value=date||todayStr();$("wEnd").value=date||todayStr();
     $("wNote").value="";S.editorImg=null;$("wDel").classList.add("hidden");
   }
   showWorkImg();$("ovWork").classList.add("show");
@@ -766,7 +815,7 @@ function saveWork(){
   var title=$("wTitle").value.trim();if(!title){$("wTitle").focus();toast("请填写作品名称");return;}
   var start=$("wStart").value;if(!start){$("wStart").focus();toast("请选择开始日期");return;}
   var end=$("wEnd").value||start;if(end<start){var tmp=start;start=end;end=tmp;}
-  var theme=$("wTheme").value;var note=$("wNote").value.trim();
+  var theme=S.curTheme;var note=$("wNote").value.trim();
   if(S.curWork){
     var w=find(S.works,S.curWork);
     var prev={title:w.title,theme:w.theme,start:w.start,end:w.end,note:w.note,cover:w.cover};
@@ -791,12 +840,12 @@ function openBuyEditor(id){
     var b=find(S.buys,id);
     $("buyEditorTitle").textContent="编辑购入";
     $("bName").value=b.name;$("bBrand").value=b.brand||"";$("bPrice").value=b.price;
-    $("bPlat").value=b.plat;$("bDate").value=b.date;$("bNote").value=b.note||"";
+    setDsel("bPlat",b.plat);$("bDate").value=b.date;$("bNote").value=b.note||"";
     $("bDel").classList.remove("hidden");
   }else{
     $("buyEditorTitle").textContent="记一笔购入";
     $("bName").value="";$("bBrand").value="";$("bPrice").value="";
-    $("bPlat").value="淘宝";$("bDate").value=todayStr();$("bNote").value="";
+    setDsel("bPlat","淘宝");$("bDate").value=todayStr();$("bNote").value="";
     $("bDel").classList.add("hidden");
   }
   $("ovBuy").classList.add("show");
@@ -811,7 +860,7 @@ function openBuyDetail(id){
 function saveBuy(){
   var name=$("bName").value.trim();if(!name){$("bName").focus();toast("请填写名称");return;}
   var price=parseFloat($("bPrice").value);if(isNaN(price)||price<0)price=0;
-  var brand=$("bBrand").value.trim();var plat=$("bPlat").value;var date=$("bDate").value;var note=$("bNote").value.trim();
+  var brand=$("bBrand").value.trim();var plat=S.curPlat;var date=$("bDate").value;var note=$("bNote").value.trim();
   if(!date)date=todayStr();
   if(S.curBuy){
     var b=find(S.buys,S.curBuy);
@@ -927,6 +976,14 @@ function bind(){
   [$("ovWork"),$("ovWorkDetail"),$("ovBuy"),$("ovBuyDetail"),$("ovDay")].forEach(function(ov){
     ov.onclick=function(e){if(e.target===ov)ov.classList.remove("show");};
   });
+
+  bindDsel("wTheme");bindDsel("bPlat");
+  document.addEventListener("click",function(e){
+    ["wTheme","bPlat"].forEach(function(id){
+      var el=$(id);
+      if(el.classList.contains("open") && !el.contains(e.target))el.classList.remove("open");
+    });
+  });
 }
 
 /* ================= 存储自动瘦身 ================= */
@@ -973,7 +1030,7 @@ function init(){
       migrateOld();
       if(!localStorage.getItem(SEED) && !S.works.length){loadSeed();localStorage.setItem(SEED,"1");}
       var t=new Date();S.calY=t.getFullYear();S.calM=t.getMonth();
-      buildThemeSelect();bind();switchTab("exhibit");refreshAll();
+      buildThemeSelect();buildPlatSelect();bind();switchTab("exhibit");refreshAll();
       healStorage();
     });
   });
