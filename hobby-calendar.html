@@ -91,15 +91,16 @@
   .cal-weekdays{display:flex;margin-bottom:8px;}
   .cal-weekdays span{flex:1;text-align:center;font-size:11px;color:var(--cal-ink);font-weight:600;}
   #calGrid{display:flex;flex-direction:column;gap:2px;}
-  .cal-week{display:flex;position:relative;min-height:90px;padding:2px 0;}
+  .cal-week{display:flex;flex-direction:column;min-height:90px;padding:2px 0;}
+  .cal-days{display:flex;}
   .cal-day{flex:1;display:flex;flex-direction:column;align-items:center;padding:6px 2px 0;position:relative;cursor:pointer;}
   .cal-day.dim{opacity:.28;}
   .cal-day.today .cal-dn{background:var(--ink);color:#fff;}
   .cal-dn{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:50%;font-size:14px;font-weight:500;color:var(--cal-ink);}
-  .cal-events{position:absolute;left:0;right:0;bottom:10px;padding:0 5px;display:flex;flex-direction:column;gap:3px;pointer-events:none;}
+  .cal-events{padding:1px 5px 4px;display:flex;flex-direction:column;gap:2px;pointer-events:none;}
   .bar-track{height:14px;position:relative;width:100%;}
   .cal-bar{position:absolute;top:0;height:12px;border-radius:6px;pointer-events:auto;cursor:pointer;display:flex;align-items:center;padding:0 7px;font-size:9.5px;color:var(--ink);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
-  .cal-more{align-self:flex-end;font-size:9px;color:var(--muted);background:var(--surface);border-radius:8px;padding:1px 5px;margin-top:2px;pointer-events:auto;cursor:pointer;}
+  .cal-more{align-self:flex-end;font-size:9px;color:var(--muted);background:var(--surface);border-radius:8px;padding:1px 5px;margin-top:2px;pointer-events:none;cursor:default;}
 
   /* ---------- 购入 ---------- */
   .bd-card{background:var(--card);border-radius:var(--radius);padding:16px 18px;margin-bottom:14px;box-shadow:var(--shadow);}
@@ -337,10 +338,11 @@
       <div class="field"><label>价格（元）</label><input type="number" id="bPrice" placeholder="0.00" min="0" step="0.01"></div>
     </div>
     <div class="two">
-      <div class="field"><label>购入平台</label>
-        <div class="dsel" id="bPlat"><button type="button" class="dsel-btn"><span class="dsel-txt">淘宝</span><span class="caret">▾</span></button><div class="dsel-pop"></div></div>
-      </div>
+      <div class="field"><label>件数</label><input type="number" id="bQty" placeholder="1" min="1" step="1"></div>
       <div class="field"><label>购入日期</label><input type="date" id="bDate"></div>
+    </div>
+    <div class="field"><label>购入平台</label>
+      <div class="dsel" id="bPlat"><button type="button" class="dsel-btn"><span class="dsel-txt">淘宝</span><span class="caret">▾</span></button><div class="dsel-pop"></div></div>
     </div>
     <div class="field"><label>备注</label><textarea id="bNote" placeholder="色号、系列、为什么买…" maxlength="300"></textarea></div>
     <datalist id="brandList"></datalist>
@@ -622,7 +624,7 @@ function computeSegments(weeks){
         days.forEach(function(d){rows[r][d.col]=true;});
         wk.segments.push({work:w,row:r,startCol:sc,endCol:ec});
       }else{
-        days.forEach(function(d){d.extra=(d.extra||0)+1;});
+        wk.hidden=(wk.hidden||0)+1;
       }
     });
   });
@@ -634,20 +636,28 @@ function renderCalendar(){
   computeSegments(weeks);
   var html="";
   weeks.forEach(function(wk){
-    html+='<div class="cal-week">';
+    html+='<div class="cal-week"><div class="cal-days">';
     wk.days.forEach(function(d){
       var dnCls="cal-dn"+(d.dateStr===todayStr()?" today":"");
       html+='<div class="cal-day'+(d.dim?" dim":"")+'" data-ds="'+d.dateStr+'"><span class="'+dnCls+'">'+d.num+'</span></div>';
     });
-    html+='<div class="cal-events">';
-    wk.segments.forEach(function(seg){
-      var col=themeColorBar(seg.work.theme);
-      var left=(seg.startCol/7)*100;var width=((seg.endCol-seg.startCol+1)/7)*100;
-      var span=seg.endCol-seg.startCol+1;
-      var pad=span===1?'3px 4px':'0 7px';
-      var label=esc(seg.work.title.slice(0,3));
-      html+='<div class="cal-bar" data-id="'+seg.work.id+'" style="top:'+(seg.row*15)+'px;left:calc('+left+'% + 3px);width:calc('+width+'% - 6px);background:'+col+';padding:'+pad+';" title="'+esc(seg.work.title)+'">'+label+'</div>';
-    });
+    html+='</div><div class="cal-events">';
+    var maxRow=-1;
+    wk.segments.forEach(function(s){if(s.row>maxRow)maxRow=s.row;});
+    for(var r=0;r<=maxRow;r++){
+      html+='<div class="bar-track">';
+      wk.segments.forEach(function(seg){
+        if(seg.row!==r)return;
+        var col=themeColorBar(seg.work.theme);
+        var left=(seg.startCol/7)*100;var width=((seg.endCol-seg.startCol+1)/7)*100;
+        var span=seg.endCol-seg.startCol+1;
+        var pad=span===1?'3px 4px':'0 7px';
+        var label=esc(span>=2?seg.work.title:seg.work.title.slice(0,3));
+        html+='<div class="cal-bar" data-id="'+seg.work.id+'" style="left:calc('+left+'% + 3px);width:calc('+width+'% - 6px);background:'+col+';padding:'+pad+';" title="'+esc(seg.work.title)+'">'+label+'</div>';
+      });
+      html+='</div>';
+    }
+    if(wk.hidden)html+='<div class="cal-more">+'+wk.hidden+' 项未显示</div>';
     html+='</div></div>';
   });
   $("calGrid").innerHTML=html;
@@ -674,17 +684,19 @@ function openDay(ds){
 }
 
 /* ================= 购入 ================= */
+function qtyOf(b){var q=parseInt(b.qty,10);return (isNaN(q)||q<1)?1:q;}
 function buysTotal(){return S.buys.reduce(function(s,b){return s+(Number(b.price)||0);},0);}
+function buysQty(){return S.buys.reduce(function(s,b){return s+qtyOf(b);},0);}
 function buysMonth(){
   var ym=todayStr().slice(0,7);
   return S.buys.filter(function(b){return b.date&&b.date.indexOf(ym)===0;}).reduce(function(s,b){return s+(Number(b.price)||0);},0);
 }
 function renderBuyStats(){
-  var total=buysTotal();var n=S.buys.length;var avg=n?total/n:0;
+  var total=buysTotal();var q=buysQty();var avg=q?total/q:0;
   $("buyStats").innerHTML=
     '<div class="stat-card"><div class="num">'+total.toFixed(2)+'</div><div class="lbl">累计花费</div></div>'
-    +'<div class="stat-card"><div class="num">'+n+'</div><div class="lbl">购入件数</div></div>'
-    +'<div class="stat-card"><div class="num">'+avg.toFixed(1)+'</div><div class="lbl">均价</div></div>'
+    +'<div class="stat-card"><div class="num">'+q+'</div><div class="lbl">购入件数</div></div>'
+    +'<div class="stat-card"><div class="num">'+avg.toFixed(1)+'</div><div class="lbl">单张均价</div></div>'
     +'<div class="stat-card"><div class="num">'+buysMonth().toFixed(0)+'</div><div class="lbl">本月花费</div></div>';
 }
 function renderBrandBars(){
@@ -719,8 +731,10 @@ function renderBuyList(){
   if(!list.length){box.innerHTML='<div class="empty">还没有购入记录<br>点右上角「记一笔」开始记账</div>';return;}
   box.innerHTML=list.map(function(b){
     var initial=(b.brand||"未")[0];
+    var q=qtyOf(b);
+    var qtyTag=q>1?'<span style="font-size:10.5px;padding:1px 8px;border-radius:999px;background:var(--surface);font-weight:600">×'+q+'</span>':'';
     return '<div class="buy" data-id="'+b.id+'"><div class="sw">'+esc(initial)+'</div>'
-      +'<div class="bd"><div class="bn">'+esc(b.name)+'</div><div class="bs"><span>'+esc(b.brand||"未填品牌")+'</span><span style="font-size:10.5px;padding:1px 8px;border-radius:999px;background:var(--surface)">'+esc(b.plat)+'</span><span>'+b.date.slice(5)+'</span></div></div>'
+      +'<div class="bd"><div class="bn">'+esc(b.name)+'</div><div class="bs"><span>'+esc(b.brand||"未填品牌")+'</span><span style="font-size:10.5px;padding:1px 8px;border-radius:999px;background:var(--surface)">'+esc(b.plat)+'</span><span>'+b.date.slice(5)+'</span>'+qtyTag+'</div></div>'
       +'<div class="pr">'+(Number(b.price)||0).toFixed(2)+'</div></div>';
   }).join("");
   box.querySelectorAll(".buy").forEach(function(el){el.onclick=function(){openBuyDetail(el.getAttribute("data-id"));};});
@@ -840,11 +854,13 @@ function openBuyEditor(id){
     var b=find(S.buys,id);
     $("buyEditorTitle").textContent="编辑购入";
     $("bName").value=b.name;$("bBrand").value=b.brand||"";$("bPrice").value=b.price;
+    $("bQty").value=qtyOf(b);
     setDsel("bPlat",b.plat);$("bDate").value=b.date;$("bNote").value=b.note||"";
     $("bDel").classList.remove("hidden");
   }else{
     $("buyEditorTitle").textContent="记一笔购入";
     $("bName").value="";$("bBrand").value="";$("bPrice").value="";
+    $("bQty").value=1;
     setDsel("bPlat","淘宝");$("bDate").value=todayStr();$("bNote").value="";
     $("bDel").classList.add("hidden");
   }
@@ -852,23 +868,27 @@ function openBuyEditor(id){
 }
 function openBuyDetail(id){
   var b=find(S.buys,id);if(!b)return;S.curBuy=id;
+  var q=qtyOf(b);
   $("dbMeta").innerHTML='<span>'+esc(b.brand||"未填品牌")+'</span><span style="font-size:11px;padding:1px 8px;border-radius:999px;background:var(--surface)">'+esc(b.plat)+'</span><span>'+b.date+'</span>';
   $("dbName").textContent=b.name;
-  $("dbNote").textContent=(b.note||"")+"\n\n价格：¥"+(Number(b.price)||0).toFixed(2);
+  var priceTxt="价格：¥"+(Number(b.price)||0).toFixed(2);
+  if(q>1)priceTxt+="（共 "+q+" 张，单价 ¥"+((Number(b.price)||0)/q).toFixed(2)+"）";
+  $("dbNote").textContent=(b.note||"")+"\n\n"+priceTxt;
   $("ovBuyDetail").classList.add("show");
 }
 function saveBuy(){
   var name=$("bName").value.trim();if(!name){$("bName").focus();toast("请填写名称");return;}
   var price=parseFloat($("bPrice").value);if(isNaN(price)||price<0)price=0;
+  var qty=parseInt($("bQty").value,10);if(isNaN(qty)||qty<1)qty=1;
   var brand=$("bBrand").value.trim();var plat=S.curPlat;var date=$("bDate").value;var note=$("bNote").value.trim();
   if(!date)date=todayStr();
   if(S.curBuy){
     var b=find(S.buys,S.curBuy);
-    var pb={name:b.name,brand:b.brand,price:b.price,plat:b.plat,date:b.date,note:b.note};
-    b.name=name;b.brand=brand;b.price=price;b.plat=plat;b.date=date;b.note=note;
+    var pb={name:b.name,brand:b.brand,price:b.price,qty:b.qty,plat:b.plat,date:b.date,note:b.note};
+    b.name=name;b.brand=brand;b.price=price;b.qty=qty;b.plat=plat;b.date=date;b.note=note;
     if(!saveBuys()){ Object.assign(b,pb); quotaToast(); return; }
   }else{
-    S.buys.push({id:"b"+Date.now(),name:name,brand:brand,price:price,plat:plat,date:date,note:note});
+    S.buys.push({id:"b"+Date.now(),name:name,brand:brand,price:price,qty:qty,plat:plat,date:date,note:note});
     if(!saveBuys()){ S.buys.pop(); quotaToast(); return; }
   }
   $("ovBuy").classList.remove("show");refreshBuy();refreshExhibit();toast("已记录");
