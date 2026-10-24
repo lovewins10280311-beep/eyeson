@@ -100,7 +100,9 @@
   .cal-events{padding:1px 5px 4px;display:flex;flex-direction:column;gap:2px;pointer-events:none;}
   .bar-track{height:14px;position:relative;width:100%;}
   .cal-bar{position:absolute;top:0;height:12px;border-radius:6px;pointer-events:auto;cursor:pointer;display:flex;align-items:center;padding:0 7px;font-size:9.5px;color:var(--ink);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
-  .cal-more{align-self:flex-end;font-size:9px;color:var(--muted);background:var(--surface);border-radius:8px;padding:1px 5px;margin-top:2px;pointer-events:none;cursor:default;}
+  .cal-more{align-self:flex-end;font-size:9px;color:var(--muted);background:var(--surface);border-radius:8px;padding:1px 5px;margin-top:2px;pointer-events:auto;cursor:pointer;}
+  .cal-more:active{opacity:.65;}
+  .cal-more.xopen{color:var(--ink);background:var(--border,rgba(0,0,0,.08));}
 
   /* ---------- 购入 ---------- */
   .bd-card{background:var(--card);border-radius:var(--radius);padding:16px 18px;margin-bottom:14px;box-shadow:var(--shadow);}
@@ -388,8 +390,8 @@ var THEMES=[
 ];
 function themeColor(n){ for(var i=0;i<THEMES.length;i++){if(THEMES[i].n===n)return THEMES[i].c;} return "#a8a8a8"; }
 function themeColorBar(n){
-  var map={"森系":"rgba(180,190,184,0.45)","海洋":"rgba(178,190,202,0.45)","城市":"rgba(188,186,200,0.45)","童话":"rgba(210,188,200,0.45)","美食":"rgba(212,194,178,0.45)","四季":"rgba(190,200,172,0.45)","其他":"rgba(190,190,190,0.45)","话本":"rgba(169,116,63,0.45)","微恐":"rgba(87,81,115,0.45)","人物":"rgba(194,128,122,0.45)","神话":"rgba(184,146,62,0.45)","静物":"rgba(122,132,102,0.45)"};
-  return map[n]||"rgba(180,180,180,0.45)";
+  var map={"森系":"rgba(96,186,163,0.5)","海洋":"rgba(96,156,228,0.5)","城市":"rgba(152,132,230,0.5)","童话":"rgba(238,146,198,0.5)","美食":"rgba(242,166,108,0.5)","四季":"rgba(168,214,92,0.5)","其他":"rgba(168,168,168,0.5)","话本":"rgba(172,106,56,0.5)","微恐":"rgba(66,60,102,0.5)","人物":"rgba(238,130,128,0.5)","神话":"rgba(232,194,80,0.5)","静物":"rgba(146,168,116,0.5)"};
+  return map[n]||"rgba(168,168,168,0.5)";
 }
 function themeExists(n){ for(var i=0;i<THEMES.length;i++){if(THEMES[i].n===n)return true;} return false; }
 
@@ -433,7 +435,7 @@ var SEED_BUYS=[
   {id:"b4",name:"城市夜景荧光贴",brand:"纸间",price:36,plat:"淘宝",date:"2026-10-15",note:"荧光点在暗处会亮"}
 ];
 
-var S={works:[],buys:[],tab:"exhibit",calY:0,calM:0,curWork:null,curBuy:null,editorImg:null,workSearch:"",workTheme:"",buyPlat:"",curTheme:"森系",curPlat:"淘宝"};
+var S={works:[],buys:[],tab:"exhibit",calY:0,calM:0,calExpand:{},curWork:null,curBuy:null,editorImg:null,workSearch:"",workTheme:"",buyPlat:"",curTheme:"森系",curPlat:"淘宝"};
 
 function isQuotaErr(e){ return e && (e.name==="QuotaExceededError"||e.name==="NS_ERROR_DOM_QUOTA_REACHED"||e.code===22||e.code===1014); }
 function quotaToast(){ toast("本地存储空间已满：图片太多或太大。已自动改用本机数据库存储，若仍失败请删除部分作品。"); }
@@ -605,10 +607,11 @@ function buildWeeks(y,m){
   }
   return weeks;
 }
-function computeSegments(weeks){
-  var MAX_ROWS=3;
-  weeks.forEach(function(wk){
+function computeSegments(weeks,expanded){
+  weeks.forEach(function(wk,wi){
+    var maxRows=(expanded&&expanded[wi])?99:3;
     var rows=[];
+    wk.segments=[];wk.hiddenWorks=[];
     S.works.forEach(function(w){
       var days=wk.days.filter(function(d){return d.dateStr&&covers(w,d.dateStr);});
       if(!days.length)return;
@@ -620,22 +623,23 @@ function computeSegments(weeks){
         if(ok)break;
         r++;
       }
-      if(r<MAX_ROWS){
+      if(r<maxRows){
         days.forEach(function(d){rows[r][d.col]=true;});
         wk.segments.push({work:w,row:r,startCol:sc,endCol:ec});
       }else{
-        wk.hidden=(wk.hidden||0)+1;
+        wk.hiddenWorks.push(w);
       }
     });
+    wk.hidden=wk.hiddenWorks.length;
   });
 }
 function renderCalendar(){
   var y=S.calY,m=S.calM;
   $("calTitle").textContent=y+"年 "+(m+1)+"月";
   var weeks=buildWeeks(y,m);
-  computeSegments(weeks);
+  computeSegments(weeks,S.calExpand);
   var html="";
-  weeks.forEach(function(wk){
+  weeks.forEach(function(wk,wi){
     html+='<div class="cal-week"><div class="cal-days">';
     wk.days.forEach(function(d){
       var dnCls="cal-dn"+(d.dateStr===todayStr()?" today":"");
@@ -657,7 +661,8 @@ function renderCalendar(){
       });
       html+='</div>';
     }
-    if(wk.hidden)html+='<div class="cal-more">+'+wk.hidden+' 项未显示</div>';
+    var isExp=!!(S.calExpand&&S.calExpand[wi]);
+    if(isExp||wk.hidden>0)html+='<div class="cal-more'+(isExp?' xopen':'')+'" data-wi="'+wi+'">'+(isExp?'收起':'+'+wk.hidden+' 项未显示')+'</div>';
     html+='</div></div>';
   });
   $("calGrid").innerHTML=html;
@@ -666,6 +671,14 @@ function renderCalendar(){
   });
   $("calGrid").querySelectorAll(".cal-day").forEach(function(d){
     d.onclick=function(){var ds=d.getAttribute("data-ds");if(ds)openDay(ds);};
+  });
+  $("calGrid").querySelectorAll(".cal-more").forEach(function(c){
+    c.onclick=function(ev){
+      ev.stopPropagation();
+      var wi=+c.getAttribute("data-wi");
+      S.calExpand[wi]=!S.calExpand[wi];
+      renderCalendar();
+    };
   });
 }
 function openDay(ds){
@@ -964,9 +977,9 @@ function bind(){
   document.querySelectorAll(".bottom-nav .tab").forEach(function(t){t.onclick=function(){switchTab(t.getAttribute("data-tab"));};});
   $("addWorkTop").onclick=function(){openWorkEditor(null,null);};
   $("addBuyTop").onclick=function(){openBuyEditor(null);};
-  $("calPrev").onclick=function(){S.calM--;if(S.calM<0){S.calM=11;S.calY--;}refreshCal();};
-  $("calNext").onclick=function(){S.calM++;if(S.calM>11){S.calM=0;S.calY++;}refreshCal();};
-  $("calToday").onclick=function(){var t=new Date();S.calY=t.getFullYear();S.calM=t.getMonth();refreshCal();};
+  $("calPrev").onclick=function(){S.calM--;if(S.calM<0){S.calM=11;S.calY--;}S.calExpand={};refreshCal();};
+  $("calNext").onclick=function(){S.calM++;if(S.calM>11){S.calM=0;S.calY++;}S.calExpand={};refreshCal();};
+  $("calToday").onclick=function(){var t=new Date();S.calY=t.getFullYear();S.calM=t.getMonth();S.calExpand={};refreshCal();};
   $("workSearch").oninput=function(){S.workSearch=this.value;renderWorkGrid();};
 
   $("workEditorClose").onclick=function(){$("ovWork").classList.remove("show");};
